@@ -33,3 +33,40 @@ onAuthStateChanged(auth, (user) => {
     content.style.display = "none";
   }
 });
+
+
+const form = document.getElementById('upload-form');
+const fileInput = document.getElementById('xls-file');
+const statusDiv = document.getElementById('upload-status');
+
+// Replace this with your actual Render backend URL
+const BACKEND_URL = "https://admin-assistant-backend.onrender.com/upload";
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  statusDiv.textContent = "Uploading...";
+
+  try {
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    if (data.status === "success") {
+      statusDiv.textContent = `Uploaded! ${data.updated} truants recorded.`;
+    } else {
+      statusDiv.textContent = "Upload failed. Check file format.";
+    }
+  } catch (err) {
+    console.error(err);
+    statusDiv.textContent = "Error uploading file.";
+  }
+});
+
