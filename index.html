@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Truancy Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="firebase.js"></script>
+    <script defer src="main.js"></script>
+</head>
+
+<body>
+    <h1>Truancy Tracker</h1>
+
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+
+    <div id="content" style="display:none;">
+        <!-- later: upload, truants, stats -->
+        <p>Welcome! You're signed in.</p>
+    </div>
+</body>
+
+</html>
