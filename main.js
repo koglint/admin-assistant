@@ -1,5 +1,17 @@
 // main.js
-import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from './firebase.js';
+import {
+  auth,
+  db,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc
+} from './firebase.js';
 
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
@@ -26,8 +38,7 @@ onAuthStateChanged(auth, (user) => {
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
     content.style.display = "block";
-    loadTruancies(); // 👈 show data right after login
-
+    loadTruancies();
   } else {
     userInfo.textContent = "";
     loginBtn.style.display = "inline-block";
@@ -36,41 +47,39 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-function loadTruancies() {
+async function loadTruancies() {
   const tableBody = document.getElementById("truancy-body");
-  tableBody.innerHTML = ""; // Clear existing rows
+  tableBody.innerHTML = "";
 
-  db.collection("students").get().then(snapshot => {
-    snapshot.forEach(doc => {
-      const student = doc.data();
-      const studentId = doc.id;
+  const snapshot = await getDocs(collection(db, "students"));
+  snapshot.forEach(docSnap => {
+    const student = docSnap.data();
+    const studentId = docSnap.id;
 
-      if (!student.truancies) return;
+    if (!student.truancies) return;
 
-      student.truancies.forEach((t, index) => {
-        const tr = document.createElement("tr");
+    student.truancies.forEach((t, index) => {
+      const tr = document.createElement("tr");
 
-        tr.innerHTML = `
-          <td>${student.fullName}</td>
-          <td>${t.date}</td>
-          <td>${t.arrivalTime || '-'}</td>
-          <td>${t.minutesLate ?? '-'}</td>
-          <td>${t.detentionIssued ? "✅" : "❌"}</td>
-          <td>${t.resolved ? "✅" : "❌"}</td>
-          <td>${t.justified ? "✅" : "❌"}</td>
-          <td>
-            <button data-stu="${studentId}" data-idx="${index}" class="mark-issued">Issue</button>
-            <button data-stu="${studentId}" data-idx="${index}" class="mark-served">Serve</button>
-            <button data-stu="${studentId}" data-idx="${index}" class="mark-justified">Justify</button>
-          </td>
-        `;
+      tr.innerHTML = `
+        <td>${student.fullName}</td>
+        <td>${t.date}</td>
+        <td>${t.arrivalTime || '-'}</td>
+        <td>${t.minutesLate ?? '-'}</td>
+        <td>${t.detentionIssued ? "✅" : "❌"}</td>
+        <td>${t.resolved ? "✅" : "❌"}</td>
+        <td>${t.justified ? "✅" : "❌"}</td>
+        <td>
+          <button data-stu="${studentId}" data-idx="${index}" class="mark-issued">Issue</button>
+          <button data-stu="${studentId}" data-idx="${index}" class="mark-served">Serve</button>
+          <button data-stu="${studentId}" data-idx="${index}" class="mark-justified">Justify</button>
+        </td>
+      `;
 
-        tableBody.appendChild(tr);
-      });
+      tableBody.appendChild(tr);
     });
   });
 }
-
 
 document.addEventListener("click", async (e) => {
   if (e.target.matches("button.mark-issued") ||
@@ -80,9 +89,9 @@ document.addEventListener("click", async (e) => {
     const studentId = e.target.dataset.stu;
     const index = parseInt(e.target.dataset.idx);
 
-    const docRef = db.collection("students").doc(studentId);
-    const doc = await docRef.get();
-    const data = doc.data();
+    const docRef = doc(db, "students", studentId);
+    const docSnap = await getDoc(docRef);
+    const data = docSnap.data();
 
     const updated = [...data.truancies];
     if (!updated[index]) return;
@@ -95,18 +104,15 @@ document.addEventListener("click", async (e) => {
       updated[index].justified = true;
     }
 
-    await docRef.update({ truancies: updated });
+    await updateDoc(docRef, { truancies: updated });
     loadTruancies();
   }
 });
-
-
 
 const form = document.getElementById('upload-form');
 const fileInput = document.getElementById('xls-file');
 const statusDiv = document.getElementById('upload-status');
 
-// Replace this with your actual Render backend URL
 const BACKEND_URL = "https://admin-assistant-backend.onrender.com/upload";
 
 form.addEventListener('submit', async (e) => {
@@ -128,8 +134,7 @@ form.addEventListener('submit', async (e) => {
     const data = await response.json();
     if (data.status === "success") {
       statusDiv.textContent = `Uploaded! ${data.added} truants recorded.`;
-      loadTruancies(); // 👈 Refresh the table after upload
-
+      loadTruancies();
     } else {
       statusDiv.textContent = "Upload failed. Check file format.";
     }
@@ -138,4 +143,3 @@ form.addEventListener('submit', async (e) => {
     statusDiv.textContent = "Error uploading file.";
   }
 });
-
