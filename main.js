@@ -5,13 +5,17 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged
+} from './firebase.js';
+
+// Import Firestore methods directly from SDK
+import {
   collection,
   getDocs,
   doc,
   getDoc,
   updateDoc
-} from './firebase.js';
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
