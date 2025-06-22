@@ -6,7 +6,6 @@
     <title>Truancy Tracker</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="main.js"></script>
-
 </head>
 
 <body>
@@ -19,19 +18,34 @@
     </div>
 
     <div id="content" style="display:none;">
-        <p>Welcome! You're signed in.</p>
-    
         <h2>Upload Attendance File</h2>
         <form id="upload-form">
-            <input type="file" id="xls-file" accept=".xls" required />
+            <input type="file" id="xls-file" accept=".xls,.xlsx" required />
             <button type="submit">Upload</button>
         </form>
         <div id="upload-status"></div>
+
+        <hr />
+
+        <h2>Current Truancies</h2>
+        <table id="truancy-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Date</th>
+                    <th>Arrival Time</th>
+                    <th>Minutes Late</th>
+                    <th>Detention Issued</th>
+                    <th>Detention Served</th>
+                    <th>Justified</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="truancy-body">
+                <!-- Filled dynamically -->
+            </tbody>
+        </table>
     </div>
-      
-
-
-
 </body>
 
 </html>
