@@ -77,6 +77,14 @@ async function loadTruancies() {
     const unresolvedCount = unresolved.length;
     const latest = unresolved.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
+    const totalMinutesLate = student.truancies
+      .filter(t => !t.justified)  // optional: exclude justified truancies
+      .reduce((sum, t) => sum + (t.minutesLate || 0), 0);
+
+    const totalHoursLate = (totalMinutesLate / 60).toFixed(2); // e.g., 1.75 hours
+
+
+
     studentDataCache.push({
       studentId,
       fullName: student.fullName,
@@ -86,6 +94,8 @@ async function loadTruancies() {
       latestDate: latest?.date ?? '-',
       arrivalTime: latest?.arrivalTime ?? '-',
       minutesLate: latest?.minutesLate ?? '-',
+      totalMinutesLate,
+      totalHoursLate,
       detentionIssued: latest?.detentionIssued ?? false,
       resolved: latest?.resolved ?? false,
       justified: latest?.justified ?? false,
@@ -108,6 +118,8 @@ function renderTable(data) {
       <td>${student.latestDate}</td>
       <td>${student.arrivalTime}</td>
       <td>${student.minutesLate}</td>
+      <td>${student.totalHoursLate}</td>
+
           `;
     tableBody.appendChild(tr);
   });
@@ -123,6 +135,7 @@ tableHeaders.forEach((header, idx) => {
       "latestDate",
       "arrivalTime",
       "minutesLate",
+      "totalMinutesLate",
       "detentionIssued",
       "resolved",
       "justified"
