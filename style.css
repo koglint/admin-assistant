@@ -1,0 +1,179 @@
+.hidden {
+    display: none !important;
+  }
+  
+  .visible {
+    display: block !important;
+  }
+  
+  .inline-block {
+    display: inline-block !important;
+  }
+
+  /* Reset some default styles */
+  * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+  }
+
+  body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      padding: 40px;
+      line-height: 1.6;
+  }
+
+  /* Headings */
+  h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+  }
+
+  h2 {
+      font-size: 24px;
+      margin: 30px 0 10px;
+      color: #34495e;
+  }
+
+  /* Auth section */
+  #auth-section {
+      margin-bottom: 20px;
+  }
+
+  #user-info {
+      margin-top: 10px;
+      font-style: italic;
+  }
+
+  /* Buttons */
+  button {
+      padding: 8px 16px;
+      font-size: 14px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+  }
+
+  button:hover {
+      background-color: #3498db;
+  }
+
+  button:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+  }
+
+  /* Upload section */
+  #upload-form {
+      margin-bottom: 10px;
+  }
+
+  #upload-status {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #27ae60;
+  }
+
+  /* Table styling */
+  table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  th,
+  td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+  }
+
+  th {
+      background-color: #ecf0f1;
+      cursor: pointer;
+      user-select: none;
+  }
+
+  tr:hover {
+      background-color: #f2f2f2;
+  }
+
+  td:nth-child(4),
+  td:nth-child(7) {
+      text-align: center;
+  }
+
+  /* Utility classes */
+  .hidden {
+      display: none !important;
+  }
+
+  .visible {
+      display: block !important;
+  }
+
+  .inline-block {
+      display: inline-block !important;
+  }
+
+  /* ======= Base Styling (already included) ======= */
+/* ...keep all previous styles unchanged... */
+
+/* ======= Responsive Table Wrapping ======= */
+
+/* ======= Media Queries for Mobile ======= */
+@media (max-width: 768px) {
+  body {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 24px;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 20px;
+    margin-top: 20px;
+  }
+
+  table,
+  thead,
+  tbody,
+  th,
+  td,
+  tr {
+    font-size: 14px;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+
+  button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  #upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #xls-file {
+    width: 100%;
+  }
+
+  #upload-status {
+    font-size: 14px;
+  }
+}

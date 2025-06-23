@@ -6,5 +6,8 @@
 		{
 			"path": "../admin-assistant-backend"
 		}
-	]
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "Admin-Assistant"
+	}
 }
