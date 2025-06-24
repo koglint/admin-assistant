@@ -8,7 +8,6 @@ import {
   onAuthStateChanged
 } from './firebase.js';
 
-// Import Firestore methods directly from SDK
 import {
   collection,
   getDocs,
@@ -50,7 +49,6 @@ onAuthStateChanged(auth, (user) => {
     logoutBtn.classList.add("inline-block");
     content.classList.remove("hidden");
     content.classList.add("visible");
-
     loadTruancies();
   } else {
     userInfo.textContent = "";
@@ -58,7 +56,6 @@ onAuthStateChanged(auth, (user) => {
     loginBtn.classList.add("inline-block");
     logoutBtn.classList.add("hidden");
     content.classList.add("hidden");
-
   }
 });
 
@@ -78,16 +75,15 @@ async function loadTruancies() {
     const latest = unresolved.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
     const totalMinutesLate = student.truancies
-      .filter(t => !t.justified)  // optional: exclude justified truancies
+      .filter(t => !t.justified)
       .reduce((sum, t) => sum + (t.minutesLate || 0), 0);
 
-    const totalHoursLate = (totalMinutesLate / 60).toFixed(2); // e.g., 1.75 hours
-
-
+    const totalHoursLate = (totalMinutesLate / 60).toFixed(2);
 
     studentDataCache.push({
       studentId,
       fullName: student.fullName,
+      surnameKey: student.fullName.split(" ").find(part => part === part.toUpperCase()) || student.fullName,
       truancyCount: student.truancyCount,
       rollClass: student.rollClass,
       unresolvedCount,
@@ -96,10 +92,7 @@ async function loadTruancies() {
       minutesLate: latest?.minutesLate ?? '-',
       totalMinutesLate,
       totalHoursLate,
-      detentionIssued: latest?.detentionIssued ?? false,
-      resolved: latest?.resolved ?? false,
-      justified: latest?.justified ?? false,
-      index: student.truancies.indexOf(latest)
+      truancies: student.truancies
     });
   });
 
@@ -108,10 +101,10 @@ async function loadTruancies() {
 
 function renderTable(data) {
   tableBody.innerHTML = "";
-  data.forEach(student => {
+  data.forEach((student, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${student.fullName}</td>
+      <td><button class="toggle-details" data-index="${index}">▶</button> ${student.fullName}</td>
       <td>${student.truancyCount}</td>
       <td>${student.rollClass}</td>
       <td>${student.unresolvedCount}</td>
@@ -119,26 +112,54 @@ function renderTable(data) {
       <td>${student.arrivalTime}</td>
       <td>${student.minutesLate}</td>
       <td>${student.totalHoursLate}</td>
-
-          `;
+    `;
     tableBody.appendChild(tr);
+
+    const detailsRow = document.createElement("tr");
+    detailsRow.classList.add("hidden", "details-row");
+    detailsRow.innerHTML = `
+      <td colspan="8">
+        <table class="inner-table">
+          <thead>
+            <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Justified</th><th>Resolved</th></tr>
+          </thead>
+          <tbody>
+            ${student.truancies.map(t => `
+              <tr>
+                <td>${t.date}</td>
+                <td>${t.arrivalTime || '-'}</td>
+                <td>${t.minutesLate ?? '-'}</td>
+                <td>${t.justified ? '✅' : '❌'}</td>
+                <td>${t.resolved ? '✅' : '❌'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </td>
+    `;
+    tableBody.appendChild(detailsRow);
   });
 }
+
+document.addEventListener("click", (e) => {
+  if (e.target.matches(".toggle-details")) {
+    const index = e.target.dataset.index;
+    const detailsRow = tableBody.querySelectorAll(".details-row")[index];
+    detailsRow.classList.toggle("hidden");
+    e.target.textContent = detailsRow.classList.contains("hidden") ? "▶" : "▼";
+  }
+});
 
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
-      "fullName",
+      "surnameKey",
       "truancyCount",
       "rollClass",
       "unresolvedCount",
       "latestDate",
       "arrivalTime",
       "minutesLate",
-      "totalMinutesLate",
-      "detentionIssued",
-      "resolved",
-      "justified"
+      "totalMinutesLate"
     ];
     const key = keyMap[idx];
 
@@ -149,35 +170,18 @@ tableHeaders.forEach((header, idx) => {
     }
 
     const sorted = [...studentDataCache].sort((a, b) => {
-      if (typeof a[key] === 'number') {
-        return sortAsc ? a[key] - b[key] : b[key] - a[key];
-      } else if (typeof a[key] === 'boolean') {
-        return sortAsc ? a[key] - b[key] : b[key] - a[key];
-      } else {
-        return sortAsc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key]));
-      }
+      const primary = (typeof a[key] === 'number' || typeof a[key] === 'boolean')
+        ? (sortAsc ? a[key] - b[key] : b[key] - a[key])
+        : (sortAsc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key])));
+
+      if (primary !== 0 || key === 'surnameKey') return primary;
+
+      // Secondary sort by surnameKey if not already sorting by it
+      return String(a.surnameKey).localeCompare(String(b.surnameKey));
     });
 
     renderTable(sorted);
   });
-});
-
-document.addEventListener("click", async (e) => {
-  if (e.target.matches(".toggle")) {
-    const studentId = e.target.dataset.stu;
-    const index = parseInt(e.target.dataset.idx);
-    const field = e.target.dataset.field;
-
-    const docRef = doc(db, "students", studentId);
-    const docSnap = await getDoc(docRef);
-    const data = docSnap.data();
-
-    const updated = [...data.truancies];
-    updated[index][field] = !updated[index][field];
-
-    await updateDoc(docRef, { truancies: updated });
-    loadTruancies();
-  }
 });
 
 const form = document.getElementById('upload-form');
