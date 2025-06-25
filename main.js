@@ -123,7 +123,7 @@ function renderTable(data) {
       <td colspan="8">
         <table class="inner-table">
           <thead>
-            <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Comment</th></tr>
+            <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Description</th><th>Comment</th></tr>
           </thead>
           <tbody>
             ${student.truancies.map(t => `
@@ -133,7 +133,8 @@ function renderTable(data) {
                 <td>${t.minutesLate ?? '-'}</td>
                 <td>${t.explainer}</td>
                 <td>${t.explainerSource}</td>
-                <td>${t.reason}</td>
+                <td>${t.description}</td>
+                <td>${t.comment || '-'}</td>
 
               </tr>`).join('')}
           </tbody>
