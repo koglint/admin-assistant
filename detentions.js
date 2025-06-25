@@ -62,9 +62,12 @@ import {
       tr.innerHTML = `
         <td>${student.fullName}</td>
         <td>${student.rollClass}</td>
+        <td>${latest?.date ?? '-'}</td>
         <td>${student.truancyCount || 0}</td>
         <td>${student.detentionsServed || 0}</td>
-        <td>${latest?.date ?? '-'}</td>
+        <td>${student.truancyResolved === true ? '✅' : student.truancyResolved === false ? '❌' : 'error'}</td>
+
+        
       `;
       tableBody.appendChild(tr);
     });
