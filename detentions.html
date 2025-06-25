@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Detention Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="detentions.js"></script>
+</head>
+
+<body>
+    <h1>Detention Tracking</h1>
+
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+
+    <div id="content" style="display:none;">
+        <button onclick="window.location.href='index.html'">⬅ Back to Main</button>
+
+        <h2>Detention Summary</h2>
+        <table id="detention-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Roll Class</th>
+                    <th>Total Truancies</th>
+                    <th>Detentions Served</th>
+                    <th>Latest Truancy Date</th>
+                </tr>
+            </thead>
+            <tbody id="detention-body">
+                <!-- Filled dynamically -->
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>

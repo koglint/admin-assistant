@@ -83,17 +83,18 @@ async function loadTruancies() {
     studentDataCache.push({
       studentId,
       fullName: student.fullName,
-      surnameKey: student.fullName.split(" ").find(part => part === part.toUpperCase()) || student.fullName,
       truancyCount: student.truancyCount,
       rollClass: student.rollClass,
-      unresolvedCount,
       latestDate: latest?.date ?? '-',
       arrivalTime: latest?.arrivalTime ?? '-',
       minutesLate: latest?.minutesLate ?? '-',
       totalMinutesLate,
       totalHoursLate,
-      truancies: student.truancies
+      truancyResolved: student.truancyResolved ?? false,
+      truancies: student.truancies || [],  // 👈 This fixes the error
+      index: student.truancies.indexOf(latest)
     });
+    
   });
 
   renderTable(studentDataCache);
@@ -107,11 +108,12 @@ function renderTable(data) {
       <td><button class="toggle-details" data-index="${index}">▶</button> ${student.fullName}</td>
       <td>${student.truancyCount}</td>
       <td>${student.rollClass}</td>
-      <td>${student.unresolvedCount}</td>
       <td>${student.latestDate}</td>
       <td>${student.arrivalTime}</td>
       <td>${student.minutesLate}</td>
       <td>${student.totalHoursLate}</td>
+      <td>${student.truancyResolved ? "✅" : "❌"}</td>
+
     `;
     tableBody.appendChild(tr);
 
@@ -121,7 +123,7 @@ function renderTable(data) {
       <td colspan="8">
         <table class="inner-table">
           <thead>
-            <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Justified</th><th>Resolved</th></tr>
+            <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Comment</th></tr>
           </thead>
           <tbody>
             ${student.truancies.map(t => `
@@ -129,8 +131,10 @@ function renderTable(data) {
                 <td>${t.date}</td>
                 <td>${t.arrivalTime || '-'}</td>
                 <td>${t.minutesLate ?? '-'}</td>
-                <td>${t.justified ? '✅' : '❌'}</td>
-                <td>${t.resolved ? '✅' : '❌'}</td>
+                <td>${t.explainer}</td>
+                <td>${t.explainerSource}</td>
+                <td>${t.reason}</td>
+
               </tr>`).join('')}
           </tbody>
         </table>
@@ -152,14 +156,14 @@ document.addEventListener("click", (e) => {
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
-      "surnameKey",
+      "fullName",
       "truancyCount",
       "rollClass",
-      "unresolvedCount",
       "latestDate",
       "arrivalTime",
       "minutesLate",
-      "totalMinutesLate"
+      "totalMinutesLate",
+      "truancyResolved"
     ];
     const key = keyMap[idx];
 
