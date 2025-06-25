@@ -82,7 +82,8 @@ async function loadTruancies() {
 
     studentDataCache.push({
       studentId,
-      fullName: student.fullName,
+      givenName: student.givenName,
+      surname: student.surname,
       truancyCount: student.truancyCount,
       rollClass: student.rollClass,
       latestDate: latest?.date ?? '-',
@@ -105,7 +106,8 @@ function renderTable(data) {
   data.forEach((student, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><button class="toggle-details" data-index="${index}">▶</button> ${student.fullName}</td>
+      <td><button class="toggle-details" data-index="${index}">▶</button> ${student.givenName}</td>
+      <td>${student.surname}</td>
       <td>${student.truancyCount}</td>
       <td>${student.rollClass}</td>
       <td>${student.latestDate}</td>
@@ -157,7 +159,8 @@ document.addEventListener("click", (e) => {
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
-      "fullName",
+      "givenName",
+      "surname",
       "truancyCount",
       "rollClass",
       "latestDate",
