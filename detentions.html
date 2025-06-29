@@ -19,11 +19,16 @@
 
     <div id="content" style="display:none;">
         <button onclick="window.location.href='index.html'">⬅ Back to Main</button>
+        <button id="select-all-btn">Select All</button>
+        <button id="unselect-all-btn">Unselect All</button>
+        <button id="mark-present-btn">Mark Selected as Present</button>
 
         <h2>Detention Summary</h2>
+
         <table id="detention-table">
             <thead>
                 <tr>
+                    <th>Select</th>
                     <th>Given Name</th>
                     <th>Surname</th>
                     <th>Roll Class</th>
@@ -31,7 +36,7 @@
                     <th>Total Truancies</th>
                     <th>Detentions Served</th>
                     <th>Truancy Resolved</th>
-                    
+                    <th>Undo</th>
                 </tr>
             </thead>
             <tbody id="detention-body">
