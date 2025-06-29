@@ -10,15 +10,21 @@
 
 <body>
     <h1>Detention Tracking</h1>
-
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
         <button id="logout-btn" style="display:none;">Sign Out</button>
         <p id="user-info"></p>
     </div>
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+    </nav>
+      
+
+
 
     <div id="content" style="display:none;">
-        <button onclick="window.location.href='index.html'">⬅ Back to Main</button>
         <button id="select-all-btn">Select All</button>
         <button id="unselect-all-btn">Unselect All</button>
         <button id="mark-present-btn">Mark Selected as Present</button>
@@ -32,10 +38,10 @@
                     <th>Given Name</th>
                     <th>Surname</th>
                     <th>Roll Class</th>
-                    <th>Latest Truancy Date</th>
-                    <th>Total Truancies</th>
+                    <th>Latest Late Arrival Date</th>
+                    <th>Total Late Arrivals</th>
                     <th>Detentions Served</th>
-                    <th>Truancy Resolved</th>
+                    <th>Late Arrival Resolved</th>
                     <th>Undo</th>
                 </tr>
             </thead>

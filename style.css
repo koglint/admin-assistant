@@ -1,134 +1,203 @@
+/* ======= Visibility Utility Classes ======= */
 .hidden {
-    display: none !important;
-  }
-  
-  .visible {
-    display: block !important;
-  }
-  
-  .inline-block {
-    display: inline-block !important;
-  }
+  display: none !important;
+}
 
-  /* Reset some default styles */
-  * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-  }
+.visible {
+  display: block !important;
+}
 
-  body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f9f9f9;
-      color: #333;
-      padding: 40px;
-      line-height: 1.6;
-  }
+.inline-block {
+  display: inline-block !important;
+}
 
-  /* Headings */
-  h1 {
-      font-size: 32px;
-      margin-bottom: 20px;
-      color: #2c3e50;
-  }
+/* ======= Reset Defaults ======= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  h2 {
-      font-size: 24px;
-      margin: 30px 0 10px;
-      color: #34495e;
-  }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f9f9f9;
+  color: #333;
+  padding: 40px;
+  line-height: 1.6;
+}
 
-  /* Auth section */
-  #auth-section {
-      margin-bottom: 20px;
-  }
+/* ======= Headings ======= */
+h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
 
-  #user-info {
-      margin-top: 10px;
-      font-style: italic;
-  }
+h2 {
+  font-size: 24px;
+  margin: 30px 0 10px;
+  color: #34495e;
+}
 
-  /* Buttons */
-  button {
-      padding: 8px 16px;
-      font-size: 14px;
-      background-color: #2980b9;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-  }
+/* ======= Auth Section ======= */
+#auth-section {
+  margin-bottom: 20px;
+}
 
-  button:hover {
-      background-color: #3498db;
-  }
+#user-info {
+  margin-top: 10px;
+  font-style: italic;
+}
 
-  button:disabled {
-      background-color: #bdc3c7;
-      cursor: not-allowed;
-  }
+/* ======= Buttons ======= */
+button {
+  padding: 8px 16px;
+  font-size: 14px;
+  background-color: #2980b9;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
 
-  /* Upload section */
-  #upload-form {
-      margin-bottom: 10px;
-  }
+button:hover {
+  background-color: #3498db;
+}
 
-  #upload-status {
-      margin-top: 10px;
-      font-weight: bold;
-      color: #27ae60;
-  }
+button:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
 
-  /* Table styling */
-  table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background-color: white;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
+button:active {
+  transform: scale(0.98);
+}
 
-  th,
-  td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-  }
+/* ======= Upload Section ======= */
+#upload-form {
+  margin-bottom: 10px;
+}
 
-  th {
-      background-color: #ecf0f1;
-      cursor: pointer;
-      user-select: none;
-  }
+#upload-status {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #27ae60;
+}
 
-  tr:hover {
-      background-color: #f2f2f2;
-  }
+/* ======= Table Styling ======= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
 
-  td:nth-child(4),
-  td:nth-child(7) {
-      text-align: center;
-  }
+th,
+td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
 
-  /* Utility classes */
-  .hidden {
-      display: none !important;
-  }
+th {
+  background-color: #ecf0f1;
+  cursor: pointer;
+  user-select: none;
+}
 
-  .visible {
-      display: block !important;
-  }
+tr:hover {
+  background-color: #f2f2f2;
+}
 
-  .inline-block {
-      display: inline-block !important;
-  }
+td:nth-child(4),
+td:nth-child(7) {
+  text-align: center;
+}
 
-  /* ======= Base Styling (already included) ======= */
-/* ...keep all previous styles unchanged... */
+/* ======= Navbar ======= */
+.navbar {
+  background-color: #333;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border-radius: 5px;
+}
 
-/* ======= Responsive Table Wrapping ======= */
+.navbar a {
+  float: left;
+  display: block;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 12px 20px;
+  text-decoration: none;
+  font-weight: bold;
+}
 
-/* ======= Media Queries for Mobile ======= */
+.navbar a:hover {
+  background-color: #575757;
+}
+
+.navbar a.active {
+  background-color: #4CAF50;
+}
+
+/* ======= Toggle Button Groups ======= */
+.toggle-group {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.toggle-group div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toggle-btn {
+  padding: 8px 16px;
+  border: 1px solid #999;
+  background: #f1f1f1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.toggle-btn:hover {
+  background-color: #ddd;
+}
+
+.toggle-btn:active {
+  transform: scale(0.98);
+}
+
+.toggle-btn.active {
+  background: #2980b9;
+  color: white;
+  border-color: #2980b9;
+}
+
+/* ======= Generate Button ======= */
+#generate-report {
+  margin-top: 30px;
+  padding: 12px 20px;
+  font-size: 16px;
+  background: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+#generate-report:hover {
+  background: #27ae60;
+}
+
+/* ======= Responsive Styling ======= */
 @media (max-width: 768px) {
   body {
     padding: 20px;
@@ -159,8 +228,32 @@
   }
 
   button {
-    font-size: 12px;
-    padding: 6px 12px;
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+
+  .toggle-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .toggle-group div {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .navbar a {
+    float: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  #generate-report {
+    width: 100%;
+    font-size: 16px;
   }
 
   #upload-form {

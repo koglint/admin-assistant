@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Reports</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ✅ Add jsPDF and autoTable BEFORE your module -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- ✅ Your module script goes last -->
+    <script type="module" src="reports.js"></script>
+</head>
+  
+
+<body>
+    <h1>Reports Export</h1>
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+    </nav>
+
+
+
+    <div id="content" style="display:none;">
+        <h2>Select Report Options</h2>
+
+        <div class="toggle-group">
+            <div>
+                <strong>Contents:</strong>
+                <button class="toggle-btn" data-group="content" data-value="simple">Simple</button>
+                <button class="toggle-btn" data-group="content" data-value="detailed">Detailed</button>
+            </div>
+
+            <div>
+                <strong>Sort Order:</strong>
+                <button class="toggle-btn" data-group="sort" data-value="roll">Roll Call</button>
+                <button class="toggle-btn" data-group="sort" data-value="surname">Surname</button>
+            </div>
+
+            <div>
+                <strong>Export Format:</strong>
+                <button class="toggle-btn" data-group="format" data-value="pdf">PDF</button>
+                <button class="toggle-btn" data-group="format" data-value="excel">Excel</button>
+            </div>
+        </div>
+
+        <button id="generate-report">Generate Report</button>
+    </div>
+</body>
+
+</html>

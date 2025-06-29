@@ -10,12 +10,18 @@
 
 <body>
     <h1>Admin Assistant</h1>
-
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
         <button id="logout-btn" style="display:none;">Sign Out</button>
         <p id="user-info"></p>
     </div>
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+    </nav>
+      
+
 
     <div id="content" style="display:none;">
         <h2>Upload Attendance File</h2>
@@ -27,21 +33,19 @@
 
         <hr />
 
-        <a href="detentions.html"><button>Go to Detention Tracker</button></a>
 
-        <hr />
 
-        <h2>Current Truancies</h2>
+        <h2>Current Late Arrivals</h2>
         <table id="truancy-table">
             <thead>
                 <tr>
                     <th>Given Name</th>
                     <th>Surname</th>
-                    <th>Truancy Count</th>
+                    <th>Late Arrival Count</th>
                     <th>Roll Class</th>
-                    <th>Last Truancy Date</th>
-                    <th>Last Truancy Arrival Time</th>
-                    <th>Last Truancy Minutes Late</th>
+                    <th>Last Late Arrival (Date)</th>
+                    <th>Last Late Arrival (Arrival Time)</th>
+                    <th>Last Late Arrival (Minutes Late)</th>
                     <th>Total Hours Late</th>
                     <th>Resolved?</th>
 

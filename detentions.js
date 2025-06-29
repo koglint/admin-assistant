@@ -104,7 +104,11 @@ function renderDetentionTable(data) {
       <td>${student.latestDate}</td>
       <td>${student.truancyCount}</td>
       <td>${student.detentionsServed}</td>
-      <td>${student.truancyResolved === true ? '✅' : student.truancyResolved === false ? '❌' : 'error'}</td>
+      <td>
+        <span class="toggle-resolved" data-id="${student.studentId}" data-current="${student.truancyResolved}">
+          ${student.truancyResolved === true ? '✅' : student.truancyResolved === false ? '❌' : 'error'}
+        </span>
+      </td>
       <td><button class="undo-btn" data-id="${student.studentId}">↩ Undo</button></td>
     `;
 
@@ -116,13 +120,15 @@ function renderDetentionTable(data) {
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
+      null, // Placeholder for checkbox column
       "givenName",
       "surname",
       "rollClass",
       "latestDate",
       "truancyCount",
       "detentionsServed",
-      "truancyResolved"
+      "truancyResolved",
+      null // Placeholder for undo button column
     ];
     const key = keyMap[idx];
 
@@ -133,13 +139,26 @@ tableHeaders.forEach((header, idx) => {
     }
 
     const sorted = [...detentionDataCache].sort((a, b) => {
-      const primary = (typeof a[key] === 'number' || typeof a[key] === 'boolean')
-        ? (sortAsc ? a[key] - b[key] : b[key] - a[key])
-        : (sortAsc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key])));
-
+      const valA = a[key];
+      const valB = b[key];
+    
+      let primary;
+      if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+        // True = 1, False = 0
+        primary = sortAsc ? (valA === valB ? 0 : valA ? -1 : 1) : (valA === valB ? 0 : valA ? 1 : -1);
+      } else if (typeof valA === 'number' && typeof valB === 'number') {
+        primary = sortAsc ? valA - valB : valB - valA;
+      } else {
+        primary = sortAsc
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      }
+    
+      // Fallback secondary sort by surname
       if (primary !== 0 || key === 'surname') return primary;
       return String(a.surname).localeCompare(String(b.surname));
     });
+    
 
     renderDetentionTable(sorted);
   });
@@ -232,3 +251,29 @@ tableBody.addEventListener("click", async (e) => {
     }
   }
 });
+
+// Manual override of truancyResolved
+tableBody.addEventListener("click", async (e) => {
+  if (e.target.classList.contains('toggle-resolved')) {
+    const studentId = e.target.dataset.id;
+    const current = e.target.dataset.current === 'true';
+    const newValue = !current;
+
+    const confirmed = window.confirm(`Set truancyResolved to ${newValue}?`);
+    if (!confirmed) return;
+
+    try {
+      const ref = doc(db, "students", studentId);
+      await updateDoc(ref, {
+        truancyResolved: newValue
+      });
+
+      alert(`Truancy resolved set to ${newValue}`);
+      await loadDetentionSummary();
+    } catch (err) {
+      console.error("Failed to update truancyResolved", err);
+      alert("Error updating truancyResolved.");
+    }
+  }
+});
+
