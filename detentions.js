@@ -28,15 +28,15 @@ const markBtn = document.getElementById("mark-present-btn");
 const selectAllBtn = document.getElementById("select-all-btn");
 const unselectAllBtn = document.getElementById("unselect-all-btn");
 
-let toggleEscalatedCheckbox;
-document.addEventListener("DOMContentLoaded", () => {
-  toggleEscalatedCheckbox = document.getElementById("toggle-escalated");
-  if (toggleEscalatedCheckbox) {
-    toggleEscalatedCheckbox.addEventListener("change", () => {
-      renderDetentionTable(detentionDataCache);
-    });
-  }
+let showEscalated = false;
+
+const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
+toggleEscalatedBtn.addEventListener("click", () => {
+  showEscalated = !showEscalated;
+  toggleEscalatedBtn.textContent = showEscalated ? "Hide Escalated" : "Show Escalated";
+  renderDetentionTable(detentionDataCache);
 });
+
 
 
 let currentSortKey = null;
@@ -107,12 +107,19 @@ async function loadDetentionSummary() {
 // Render table
 function renderDetentionTable(data) {
   tableBody.innerHTML = "";
+
   data.forEach(student => {
-    const showEscalated = toggleEscalatedCheckbox?.checked || false;
-    if (student.escalated && !showEscalated) return;
+    const isResolved = student.truancyResolved === true;
+    const isEscalated = student.escalated === true;
+
+    if (!showEscalated && isEscalated) return;
+    if (hideResolved && isResolved) return;
 
     const tr = document.createElement("tr");
     tr.setAttribute("data-resolved", student.truancyResolved);
+    if (student.escalated) {
+      tr.classList.add("escalated-row");
+    }
 
     tr.innerHTML = `
       <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}"></td>
@@ -133,6 +140,7 @@ function renderDetentionTable(data) {
     tableBody.appendChild(tr);
   });
 }
+
 
 // Sorting logic
 tableHeaders.forEach((header, idx) => {
@@ -300,17 +308,9 @@ let hideResolved = false;
 
 toggleResolvedBtn.addEventListener("click", () => {
   hideResolved = !hideResolved;
-
-  document.querySelectorAll('#detention-body tr').forEach(row => {
-    const isResolved = row.getAttribute("data-resolved") === "true";
-    if (hideResolved && isResolved) {
-      row.style.display = "none";
-    } else {
-      row.style.display = "";
-    }
-  });
-
   toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
+  renderDetentionTable(detentionDataCache);
 });
+
 
 

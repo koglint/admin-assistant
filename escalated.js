@@ -91,11 +91,13 @@ import {
     const results = document.getElementById('search-results');
     results.innerHTML = '';
   
-    const lower = query.toLowerCase();
+    const trimmed = query.trim().toLowerCase();
+    if (trimmed.length === 0) return; // Don't render anything if query is empty
+  
     const matches = allStudents
       .filter(s =>
         !s.escalated &&
-        (s.name.toLowerCase().includes(lower) || s.rollClass.toLowerCase().includes(lower))
+        (s.name.toLowerCase().includes(trimmed) || s.rollClass.toLowerCase().includes(trimmed))
       );
   
     matches.forEach(student => {
@@ -107,6 +109,7 @@ import {
       results.appendChild(li);
     });
   }
+  
   
   document.getElementById('search-input').addEventListener('input', (e) => {
     renderSearchResults(e.target.value);
@@ -129,6 +132,6 @@ import {
   async function refreshPage() {
     await loadAllStudents();
     renderEscalatedList();
-    renderSearchResults(document.getElementById('search-input').value);
-  }
+    document.getElementById('search-results').innerHTML = '';
+}
   
