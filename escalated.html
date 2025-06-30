@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Escalated Students</title>
+    <link rel="stylesheet" href="style.css" />
+
+    <script type="module" src="escalated.js" defer></script>
+</head>
+
+<body>
+    <h1>Escalated Students</h1>
+
+    <section>
+        <h2>Manually Escalate Student</h2>
+        <input type="text" id="search-input" placeholder="Search by name or roll class" />
+        <ul id="search-results"></ul>
+    </section>
+
+    <h2>Currently Escalated</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Roll Class</th>
+                <th>Total Truancies</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="escalated-body">
+            <!-- Filled by JS -->
+        </tbody>
+    </table>
+</body>
+  
+
+</html>

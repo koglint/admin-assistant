@@ -28,6 +28,17 @@ const markBtn = document.getElementById("mark-present-btn");
 const selectAllBtn = document.getElementById("select-all-btn");
 const unselectAllBtn = document.getElementById("unselect-all-btn");
 
+let toggleEscalatedCheckbox;
+document.addEventListener("DOMContentLoaded", () => {
+  toggleEscalatedCheckbox = document.getElementById("toggle-escalated");
+  if (toggleEscalatedCheckbox) {
+    toggleEscalatedCheckbox.addEventListener("change", () => {
+      renderDetentionTable(detentionDataCache);
+    });
+  }
+});
+
+
 let currentSortKey = null;
 let sortAsc = true;
 let detentionDataCache = [];
@@ -84,7 +95,9 @@ async function loadDetentionSummary() {
       latestDate: latest?.date ?? '-',
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
-      truancyResolved: student.truancyResolved
+      truancyResolved: student.truancyResolved,
+      escalated: !!student.escalated  // coerces undefined to false
+
     });
   });
 
@@ -95,6 +108,9 @@ async function loadDetentionSummary() {
 function renderDetentionTable(data) {
   tableBody.innerHTML = "";
   data.forEach(student => {
+    const showEscalated = toggleEscalatedCheckbox?.checked || false;
+    if (student.escalated && !showEscalated) return;
+
     const tr = document.createElement("tr");
     tr.setAttribute("data-resolved", student.truancyResolved);
 
@@ -296,3 +312,5 @@ toggleResolvedBtn.addEventListener("click", () => {
 
   toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
 });
+
+
