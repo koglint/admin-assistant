@@ -2,14 +2,27 @@
 <html>
 
 <head>
+    <meta charset="UTF-8" />
     <title>Escalated Students</title>
     <link rel="stylesheet" href="style.css" />
-
     <script type="module" src="escalated.js" defer></script>
 </head>
 
-<body>
+<body style="display: none;">
     <h1>Escalated Students</h1>
+
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+        <a href="escalated.html">Escalated Students</a>
+    </nav>
 
     <section>
         <h2>Manually Escalate Student</h2>
@@ -32,6 +45,5 @@
         </tbody>
     </table>
 </body>
-  
 
 </html>
