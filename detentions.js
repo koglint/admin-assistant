@@ -96,6 +96,8 @@ function renderDetentionTable(data) {
   tableBody.innerHTML = "";
   data.forEach(student => {
     const tr = document.createElement("tr");
+    tr.setAttribute("data-resolved", student.truancyResolved);
+
     tr.innerHTML = `
       <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}"></td>
       <td>${student.givenName}</td>
@@ -277,3 +279,20 @@ tableBody.addEventListener("click", async (e) => {
   }
 });
 
+const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
+let hideResolved = false;
+
+toggleResolvedBtn.addEventListener("click", () => {
+  hideResolved = !hideResolved;
+
+  document.querySelectorAll('#detention-body tr').forEach(row => {
+    const isResolved = row.getAttribute("data-resolved") === "true";
+    if (hideResolved && isResolved) {
+      row.style.display = "none";
+    } else {
+      row.style.display = "";
+    }
+  });
+
+  toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
+});

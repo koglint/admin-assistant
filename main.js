@@ -106,7 +106,8 @@ function renderTable(data) {
   data.forEach((student, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><button class="toggle-details" data-index="${index}">▶</button> ${student.givenName}</td>
+      <td><button class="toggle-details" data-index="${index}">▶</button></td>
+      <td>${student.givenName}</td>
       <td>${student.surname}</td>
       <td>${student.truancyCount}</td>
       <td>${student.rollClass}</td>
