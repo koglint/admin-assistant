@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Admin Controls</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="admin.js"></script>
+</head>
+
+<body>
+    <h1>Admin Controls</h1>
+
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+        <a href="escalated.html">Escalated Students</a>
+        <a href="admin.html">Admin</a>
+    </nav>
+
+    <div id="content" style="display:none;">
+        <section class="admin-card">
+            <h2>Admin Password</h2>
+            <p class="admin-note">Sign in with an approved email, then enter the backend admin password to unlock protected actions on this page.</p>
+            <div id="password-panel" class="admin-row">
+                <input type="password" id="admin-password" placeholder="Admin password" />
+                <button id="unlock-btn">Unlock Admin</button>
+            </div>
+            <p id="password-status" class="admin-status"></p>
+        </section>
+
+        <section id="admin-panel" class="admin-card hidden">
+            <h2>Danger Zone</h2>
+            <p class="admin-note">
+                Purge removes every student currently stored in Firestore. This is intended as a full reset before refreshing the system with a new upload, and it only runs through the backend after the approved user and password checks pass.
+            </p>
+
+            <div class="purge-panel">
+                <button id="purge-btn" class="purge-btn">
+                    <span class="purge-icon">&#9760;</span>
+                    Purge
+                </button>
+                <p id="purge-availability" class="admin-status"></p>
+            </div>
+
+            <div id="purge-confirmation" class="hidden confirm-box">
+                <p class="admin-warning">Type <strong>DELETE</strong> to confirm that all student data should be removed.</p>
+                <div class="admin-row">
+                    <input type="text" id="delete-confirm-input" placeholder="Type DELETE" />
+                    <button id="confirm-purge-btn" class="purge-btn">Confirm Purge</button>
+                    <button id="cancel-purge-btn" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+
+            <p id="purge-status" class="admin-status"></p>
+        </section>
+    </div>
+</body>
+
+</html>

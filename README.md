@@ -94,6 +94,23 @@ What it does:
 - Lets the user search by student name or roll class.
 - Lets the user set `escalated: true` or `escalated: false` on a student document.
 
+### `admin.html` + `admin.js`
+
+This page contains protected admin controls.
+
+What it does:
+
+- Requires normal Google sign-in first.
+- Only allows the signed-in emails `troy.koglin1@det.nsw.edu.au` or `troy.koglin1@education.nsw.gov.au`.
+- Requires a second admin password, but the password itself is checked on the Render backend rather than stored in frontend code.
+- Exposes a purge action that deletes every student document in the `students` Firestore collection through a backend endpoint.
+- Uses a second confirmation step where the user must type `DELETE`.
+- Sends the user’s Firebase ID token to the backend so the server can verify that the user is logged in before purging.
+
+Important note:
+
+- The frontend no longer stores the real admin password and no longer deletes Firestore data directly. The secure purge is controlled by the backend.
+
 ## Firestore Data Shape
 
 The app expects a `students` collection where each document ID is the student ID from the attendance spreadsheet.
@@ -168,8 +185,10 @@ Deployment expectations:
 - HTML pages are served as static files.
 - `firebase.js` contains the Firebase web config.
 - `main.js` points uploads to the Render backend URL.
+- `admin.js` points secure purge requests to the Render backend URL.
 
 If you change the backend host, update the `BACKEND_URL` constant in [`main.js`](./main.js).
+If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`admin.js`](./admin.js).
 
 ## Key Files
 
@@ -181,6 +200,8 @@ If you change the backend host, update the `BACKEND_URL` constant in [`main.js`]
 - [`reports.js`](./reports.js): PDF/Excel export logic
 - [`escalated.html`](./escalated.html): escalated students page
 - [`escalated.js`](./escalated.js): escalation search and update logic
+- [`admin.html`](./admin.html): admin control page
+- [`admin.js`](./admin.js): admin password gate and purge workflow
 - [`firebase.js`](./firebase.js): Firebase setup
 - [`style.css`](./style.css): shared styling
 
@@ -192,6 +213,7 @@ If you change the backend host, update the `BACKEND_URL` constant in [`main.js`]
 4. Move to the Detentions page to record served detentions.
 5. Use the Escalated page for students needing manual escalation.
 6. Use the Reports page to export summaries for staff use.
+7. Use the Admin page only for protected maintenance actions such as a full student-data purge.
 
 ## Maintenance Notes
 
