@@ -1,4 +1,3 @@
-// main.js
 import {
   auth,
   db,
@@ -10,10 +9,7 @@ import {
 
 import {
   collection,
-  getDocs,
-  doc,
-  getDoc,
-  updateDoc
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const loginBtn = document.getElementById('login-btn');
@@ -68,34 +64,28 @@ async function loadTruancies() {
     const student = docSnap.data();
     const studentId = docSnap.id;
 
-    if (!student.truancies) return;
+    if (!Array.isArray(student.truancies) || student.truancies.length === 0) return;
 
-    const unresolved = student.truancies.filter(t => !t.resolved && !t.justified);
-    const unresolvedCount = unresolved.length;
-    const latest = unresolved.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const unresolved = student.truancies.filter(t => !t.justified);
+    if (student.truancyResolved || unresolved.length === 0) return;
 
-    const totalMinutesLate = student.truancies
-      .filter(t => !t.justified)
-      .reduce((sum, t) => sum + (t.minutesLate || 0), 0);
-
-    const totalHoursLate = (totalMinutesLate / 60).toFixed(2);
+    const latest = [...unresolved].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const totalMinutesLate = unresolved.reduce((sum, t) => sum + (t.minutesLate || 0), 0);
 
     studentDataCache.push({
       studentId,
       givenName: student.givenName,
       surname: student.surname,
-      truancyCount: student.truancyCount,
+      truancyCount: unresolved.length,
       rollClass: student.rollClass,
       latestDate: latest?.date ?? '-',
       arrivalTime: latest?.arrivalTime ?? '-',
       minutesLate: latest?.minutesLate ?? '-',
       totalMinutesLate,
-      totalHoursLate,
+      totalHoursLate: (totalMinutesLate / 60).toFixed(2),
       truancyResolved: student.truancyResolved ?? false,
-      truancies: student.truancies || [],  // 👈 This fixes the error
-      index: student.truancies.indexOf(latest)
+      truancies: student.truancies
     });
-    
   });
 
   renderTable(studentDataCache);
@@ -106,7 +96,7 @@ function renderTable(data) {
   data.forEach((student, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><button class="toggle-details" data-index="${index}">▶</button></td>
+      <td><button class="toggle-details" data-index="${index}">&#9654;</button></td>
       <td>${student.givenName}</td>
       <td>${student.surname}</td>
       <td>${student.truancyCount}</td>
@@ -115,15 +105,14 @@ function renderTable(data) {
       <td>${student.arrivalTime}</td>
       <td>${student.minutesLate}</td>
       <td>${student.totalHoursLate}</td>
-      <td>${student.truancyResolved ? "✅" : "❌"}</td>
-
+      <td>${student.truancyResolved ? "Yes" : "No"}</td>
     `;
     tableBody.appendChild(tr);
 
     const detailsRow = document.createElement("tr");
     detailsRow.classList.add("hidden", "details-row");
     detailsRow.innerHTML = `
-      <td colspan="8">
+      <td colspan="10">
         <table class="inner-table">
           <thead>
             <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Description</th><th>Comment</th></tr>
@@ -134,11 +123,10 @@ function renderTable(data) {
                 <td>${t.date}</td>
                 <td>${t.arrivalTime || '-'}</td>
                 <td>${t.minutesLate ?? '-'}</td>
-                <td>${t.explainer}</td>
-                <td>${t.explainerSource}</td>
-                <td>${t.description}</td>
+                <td>${t.explainer || '-'}</td>
+                <td>${t.explainerSource || '-'}</td>
+                <td>${t.description || '-'}</td>
                 <td>${t.comment || '-'}</td>
-
               </tr>`).join('')}
           </tbody>
         </table>
@@ -150,16 +138,19 @@ function renderTable(data) {
 
 document.addEventListener("click", (e) => {
   if (e.target.matches(".toggle-details")) {
-    const index = e.target.dataset.index;
+    const index = Number(e.target.dataset.index);
     const detailsRow = tableBody.querySelectorAll(".details-row")[index];
+    if (!detailsRow) return;
+
     detailsRow.classList.toggle("hidden");
-    e.target.textContent = detailsRow.classList.contains("hidden") ? "▶" : "▼";
+    e.target.innerHTML = detailsRow.classList.contains("hidden") ? "&#9654;" : "&#9660;";
   }
 });
 
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
+      null,
       "givenName",
       "surname",
       "truancyCount",
@@ -171,22 +162,32 @@ tableHeaders.forEach((header, idx) => {
       "truancyResolved"
     ];
     const key = keyMap[idx];
+    if (!key) return;
 
-    if (key === currentSortKey) sortAsc = !sortAsc;
-    else {
+    if (key === currentSortKey) {
+      sortAsc = !sortAsc;
+    } else {
       currentSortKey = key;
       sortAsc = true;
     }
 
     const sorted = [...studentDataCache].sort((a, b) => {
-      const primary = (typeof a[key] === 'number' || typeof a[key] === 'boolean')
-        ? (sortAsc ? a[key] - b[key] : b[key] - a[key])
-        : (sortAsc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key])));
+      const valA = a[key];
+      const valB = b[key];
 
-      if (primary !== 0 || key === 'surnameKey') return primary;
+      let primary;
+      if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+        primary = sortAsc ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+      } else if (typeof valA === 'number' && typeof valB === 'number') {
+        primary = sortAsc ? valA - valB : valB - valA;
+      } else {
+        primary = sortAsc
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      }
 
-      // Secondary sort by surnameKey if not already sorting by it
-      return String(a.surnameKey).localeCompare(String(b.surnameKey));
+      if (primary !== 0 || key === 'surname') return primary;
+      return String(a.surname).localeCompare(String(b.surname));
     });
 
     renderTable(sorted);
@@ -216,11 +217,11 @@ form.addEventListener('submit', async (e) => {
     });
 
     const data = await response.json();
-    if (data.status === "success") {
+    if (response.ok && data.status === "success") {
       statusDiv.textContent = `Uploaded! ${data.added} truants recorded.`;
       loadTruancies();
     } else {
-      statusDiv.textContent = "Upload failed. Check file format.";
+      statusDiv.textContent = data.message || "Upload failed. Check file format.";
     }
   } catch (err) {
     console.error(err);

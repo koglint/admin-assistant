@@ -1,4 +1,3 @@
-// detentions.js
 import {
   auth,
   db,
@@ -14,10 +13,9 @@ import {
   getDoc,
   doc,
   updateDoc,
-  Timestamp
+  deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// UI elements
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userInfo = document.getElementById('user-info');
@@ -27,21 +25,26 @@ const tableHeaders = document.querySelectorAll("#detention-table th");
 const markBtn = document.getElementById("mark-present-btn");
 const selectAllBtn = document.getElementById("select-all-btn");
 const unselectAllBtn = document.getElementById("unselect-all-btn");
+const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
+const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 
 let showEscalated = false;
+let hideResolved = false;
+let currentSortKey = null;
+let sortAsc = true;
+let detentionDataCache = [];
 
-const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 toggleEscalatedBtn.addEventListener("click", () => {
   showEscalated = !showEscalated;
   toggleEscalatedBtn.textContent = showEscalated ? "Hide Escalated" : "Show Escalated";
   renderDetentionTable(detentionDataCache);
 });
 
-
-
-let currentSortKey = null;
-let sortAsc = true;
-let detentionDataCache = [];
+toggleResolvedBtn.addEventListener("click", () => {
+  hideResolved = !hideResolved;
+  toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
+  renderDetentionTable(detentionDataCache);
+});
 
 loginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
@@ -72,7 +75,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Load data
 async function loadDetentionSummary() {
   tableBody.innerHTML = "";
   detentionDataCache = [];
@@ -83,7 +85,7 @@ async function loadDetentionSummary() {
     const student = docSnap.data();
     const id = docSnap.id;
 
-    if (!student.truancies || student.truancies.length === 0) return;
+    if (!Array.isArray(student.truancies) || student.truancies.length === 0) return;
 
     const latest = [...student.truancies].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
@@ -95,16 +97,14 @@ async function loadDetentionSummary() {
       latestDate: latest?.date ?? '-',
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
-      truancyResolved: student.truancyResolved,
-      escalated: !!student.escalated  // coerces undefined to false
-
+      truancyResolved: student.truancyResolved === true,
+      escalated: !!student.escalated
     });
   });
 
   renderDetentionTable(detentionDataCache);
 }
 
-// Render table
 function renderDetentionTable(data) {
   tableBody.innerHTML = "";
 
@@ -131,22 +131,20 @@ function renderDetentionTable(data) {
       <td>${student.detentionsServed}</td>
       <td>
         <span class="toggle-resolved" data-id="${student.studentId}" data-current="${student.truancyResolved}">
-          ${student.truancyResolved === true ? '✅' : student.truancyResolved === false ? '❌' : 'error'}
+          ${student.truancyResolved ? 'Yes' : 'No'}
         </span>
       </td>
-      <td><button class="undo-btn" data-id="${student.studentId}">↩ Undo</button></td>
+      <td><button class="undo-btn" data-id="${student.studentId}">Undo</button></td>
     `;
 
     tableBody.appendChild(tr);
   });
 }
 
-
-// Sorting logic
 tableHeaders.forEach((header, idx) => {
   header.addEventListener("click", () => {
     const keyMap = [
-      null, // Placeholder for checkbox column
+      null,
       "givenName",
       "surname",
       "rollClass",
@@ -154,12 +152,14 @@ tableHeaders.forEach((header, idx) => {
       "truancyCount",
       "detentionsServed",
       "truancyResolved",
-      null // Placeholder for undo button column
+      null
     ];
     const key = keyMap[idx];
+    if (!key) return;
 
-    if (key === currentSortKey) sortAsc = !sortAsc;
-    else {
+    if (key === currentSortKey) {
+      sortAsc = !sortAsc;
+    } else {
       currentSortKey = key;
       sortAsc = true;
     }
@@ -167,11 +167,10 @@ tableHeaders.forEach((header, idx) => {
     const sorted = [...detentionDataCache].sort((a, b) => {
       const valA = a[key];
       const valB = b[key];
-    
+
       let primary;
       if (typeof valA === 'boolean' && typeof valB === 'boolean') {
-        // True = 1, False = 0
-        primary = sortAsc ? (valA === valB ? 0 : valA ? -1 : 1) : (valA === valB ? 0 : valA ? 1 : -1);
+        primary = sortAsc ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
       } else if (typeof valA === 'number' && typeof valB === 'number') {
         primary = sortAsc ? valA - valB : valB - valA;
       } else {
@@ -179,18 +178,15 @@ tableHeaders.forEach((header, idx) => {
           ? String(valA).localeCompare(String(valB))
           : String(valB).localeCompare(String(valA));
       }
-    
-      // Fallback secondary sort by surname
+
       if (primary !== 0 || key === 'surname') return primary;
       return String(a.surname).localeCompare(String(b.surname));
     });
-    
 
     renderDetentionTable(sorted);
   });
 });
 
-// Handle "Mark selected as present"
 markBtn.addEventListener("click", async () => {
   const selected = [...document.querySelectorAll(".select-student:checked")];
   if (selected.length === 0) {
@@ -211,7 +207,6 @@ markBtn.addEventListener("click", async () => {
       const currentCount = data.detentionsServed || 0;
       const today = new Date().toISOString().split("T")[0];
 
-      // Find latest truancy date
       let latestTruancyDate = null;
       if (Array.isArray(data.truancies) && data.truancies.length > 0) {
         latestTruancyDate = data.truancies
@@ -220,18 +215,13 @@ markBtn.addEventListener("click", async () => {
           ?.toISOString().split("T")[0];
       }
 
-      // Determine if resolved
-      let truancyResolved = false;
-      if (latestTruancyDate && today >= latestTruancyDate) {
-        truancyResolved = true;
-      }
+      const truancyResolved = Boolean(latestTruancyDate && today >= latestTruancyDate);
 
       await updateDoc(ref, {
         detentionsServed: currentCount + 1,
         lastDetentionServedDate: today,
         truancyResolved
       });
-
     } catch (err) {
       console.error(`Failed to update ${studentId}`, err);
     }
@@ -241,16 +231,18 @@ markBtn.addEventListener("click", async () => {
   alert("Marked as present.");
 });
 
-// Select/unselect all
 selectAllBtn.addEventListener("click", () => {
-  document.querySelectorAll(".select-student").forEach(cb => cb.checked = true);
+  document.querySelectorAll(".select-student").forEach(cb => {
+    cb.checked = true;
+  });
 });
 
 unselectAllBtn.addEventListener("click", () => {
-  document.querySelectorAll(".select-student").forEach(cb => cb.checked = false);
+  document.querySelectorAll(".select-student").forEach(cb => {
+    cb.checked = false;
+  });
 });
 
-// Undo detention mark
 tableBody.addEventListener("click", async (e) => {
   if (e.target.matches('.undo-btn')) {
     const studentId = e.target.dataset.id;
@@ -265,7 +257,9 @@ tableBody.addEventListener("click", async (e) => {
       const currentCount = student.detentionsServed || 0;
       if (currentCount > 0) {
         await updateDoc(ref, {
-          detentionsServed: currentCount - 1
+          detentionsServed: currentCount - 1,
+          truancyResolved: false,
+          lastDetentionServedDate: deleteField()
         });
         alert("Detention record updated.");
         await loadDetentionSummary();
@@ -278,7 +272,6 @@ tableBody.addEventListener("click", async (e) => {
   }
 });
 
-// Manual override of truancyResolved
 tableBody.addEventListener("click", async (e) => {
   if (e.target.classList.contains('toggle-resolved')) {
     const studentId = e.target.dataset.id;
@@ -290,9 +283,15 @@ tableBody.addEventListener("click", async (e) => {
 
     try {
       const ref = doc(db, "students", studentId);
-      await updateDoc(ref, {
+      const updates = {
         truancyResolved: newValue
-      });
+      };
+
+      if (!newValue) {
+        updates.lastDetentionServedDate = deleteField();
+      }
+
+      await updateDoc(ref, updates);
 
       alert(`Truancy resolved set to ${newValue}`);
       await loadDetentionSummary();
@@ -302,15 +301,3 @@ tableBody.addEventListener("click", async (e) => {
     }
   }
 });
-
-const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
-let hideResolved = false;
-
-toggleResolvedBtn.addEventListener("click", () => {
-  hideResolved = !hideResolved;
-  toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
-  renderDetentionTable(detentionDataCache);
-});
-
-
-
