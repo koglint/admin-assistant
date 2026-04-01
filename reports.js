@@ -102,7 +102,7 @@ async function loadStudents() {
       surname: data.surname || '',
       givenName: data.givenName || '',
       rollClass: data.rollClass || '',
-      yearGroup: data.yearGroup || getYearGroup(data.rollClass || ''),
+      yearGroup: resolveYearGroup(data),
       lateCount: data.lateCount || data.truancyCount || 0,
       detentionsServed: data.detentionsServed || 0,
       escalated: !!data.escalated,
@@ -254,6 +254,30 @@ function getFormattedDate() {
 function getYearGroup(rollClass) {
   const match = String(rollClass).match(/\d+/);
   return match ? match[0] : '';
+}
+
+function resolveYearGroup(student) {
+  const explicitYear = normalizeYearGroupValue(student.yearGroup);
+  if (explicitYear) return explicitYear;
+
+  const truancyYear = Array.isArray(student.lateArrivals || student.truancies)
+    ? (student.lateArrivals || student.truancies).map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+    : '';
+  if (truancyYear) return truancyYear;
+
+  return getYearGroup(student.rollClass || '');
+}
+
+function normalizeYearGroupValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  if (text.endsWith('.0')) {
+    return text.slice(0, -2);
+  }
+
+  const digits = text.match(/\d+/);
+  return digits ? digits[0] : text;
 }
 
 function formatReasons(reasons) {

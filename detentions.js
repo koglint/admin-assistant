@@ -262,7 +262,7 @@ async function loadDetentionSummary() {
       givenName: student.givenName || "",
       surname: student.surname || "",
       rollClass: student.rollClass || "",
-      yearGroup: student.yearGroup || getYearGroup(student.rollClass || ""),
+      yearGroup: resolveYearGroup(student),
       latestDate: latest?.date ?? '-',
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
@@ -404,7 +404,31 @@ function restoreSelectedStudents() {
 
 function getYearGroup(rollClass) {
   const match = String(rollClass).match(/\d+/);
-  return match ? match[0] : "Other";
+  return match ? match[0] : "";
+}
+
+function resolveYearGroup(student) {
+  const explicitYear = normalizeYearGroupValue(student.yearGroup);
+  if (explicitYear) return explicitYear;
+
+  const truancyYear = Array.isArray(student.truancies)
+    ? student.truancies.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+    : "";
+  if (truancyYear) return truancyYear;
+
+  return getYearGroup(student.rollClass || "");
+}
+
+function normalizeYearGroupValue(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  if (text.endsWith(".0")) {
+    return text.slice(0, -2);
+  }
+
+  const digits = text.match(/\d+/);
+  return digits ? digits[0] : text;
 }
 
 async function updateSelectedStudents(selectedIds, updater) {
