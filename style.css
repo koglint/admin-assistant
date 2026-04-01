@@ -318,6 +318,25 @@ td:nth-child(7) {
   color: #5f6f82;
 }
 
+.student-picker {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.student-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d7e2ed;
+  border-radius: 8px;
+  background: #f9fbfd;
+}
+
 .status-pill {
   display: inline-block;
   padding: 5px 10px;
@@ -341,6 +360,15 @@ td:nth-child(7) {
   background-color: #ffe6e6;
   border-left: 4px solid #cc0000;
   font-style: italic;
+}
+
+.disabled-row {
+  opacity: 0.72;
+}
+
+.greyed-name {
+  color: #6c757d;
+  font-weight: 600;
 }
 
 .admin-card {

@@ -1,261 +1,262 @@
 import {
-    auth,
-    db,
-    GoogleAuthProvider,
-    signInWithPopup,
-    signOut,
-    onAuthStateChanged
-  } from './firebase.js';
-  
-  import {
-    collection,
-    getDocs
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  
-  const jsPDF = window.jspdf.jsPDF;
-  import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/+esm';
-  import * as XLSX from 'https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs';
-  
-  // Elements
-  const loginBtn = document.getElementById("login-btn");
-  const logoutBtn = document.getElementById("logout-btn");
-  const userInfo = document.getElementById("user-info");
-  const content = document.getElementById("content");
-  const generateBtn = document.getElementById("generate-report");
-  
-  // Auth
-  loginBtn.onclick = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider).catch(err => {
-      alert("Login failed");
-      console.error(err);
-    });
-  };
-  
-  logoutBtn.onclick = () => signOut(auth);
-  
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
-      loginBtn.style.display = "none";
-      logoutBtn.style.display = "inline-block";
-      content.style.display = "block";
-    } else {
-      userInfo.textContent = "";
-      loginBtn.style.display = "inline-block";
-      logoutBtn.style.display = "none";
-      content.style.display = "none";
-    }
+  auth,
+  db,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from './firebase.js';
+
+import {
+  collection,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const jsPDF = window.jspdf.jsPDF;
+import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/+esm';
+import * as XLSX from 'https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs';
+
+const loginBtn = document.getElementById("login-btn");
+const logoutBtn = document.getElementById("logout-btn");
+const userInfo = document.getElementById("user-info");
+const content = document.getElementById("content");
+const exportFormat = document.getElementById("export-format");
+const generateSummaryBtn = document.getElementById("generate-summary-report");
+const generateHistoryBtn = document.getElementById("generate-history-report");
+const historyScope = document.getElementById("history-scope");
+const studentSearch = document.getElementById("student-search");
+const rollClassSelect = document.getElementById("roll-class-select");
+const yearGroupSelect = document.getElementById("year-group-select");
+const studentPicker = document.getElementById("student-picker");
+
+let allStudents = [];
+const selectedStudentIds = new Set();
+
+loginBtn.onclick = async () => {
+  const provider = new GoogleAuthProvider();
+  await signInWithPopup(auth, provider).catch(err => {
+    alert("Login failed");
+    console.error(err);
   });
-  
-  // Toggle buttons
-  let settings = {
-    content: "simple",
-    sort: "roll",
-    format: "pdf"
-  };
-  
-  document.querySelectorAll(".toggle-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const group = btn.dataset.group;
-      const value = btn.dataset.value;
-      settings[group] = value;
-  
-      document.querySelectorAll(`.toggle-btn[data-group="${group}"]`).forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-    });
-  });
-  
-  // Data
-  function getFormattedDate() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+logoutBtn.onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+    content.style.display = "block";
+    await loadStudents();
+    renderFilters();
+    renderStudentPicker();
+  } else {
+    userInfo.textContent = "";
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+    content.style.display = "none";
   }
-  
-  async function fetchData() {
-    const students = [];
-    const snapshot = await getDocs(collection(db, "students"));
-  
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const latest = (data.truancies || []).sort((a, b) => new Date(b.date) - new Date(a.date))[0] || {};
-  
-      students.push({
-        studentId: doc.id,
-        surname: data.surname || '',
-        givenName: data.givenName || '',
-        rollClass: data.rollClass || '',
-        truancyCount: data.truancyCount || 0,
-        lastDate: latest.date || '-',
-        detentionsServed: data.detentionsServed || 0,
-        resolved: data.truancyResolved === true ? 'Yes' : data.truancyResolved === false ? 'No' : 'error'
-      });
-    });
-  
-    // Sort
-    if (settings.sort === 'roll') {
-      const rollOrder = ["7", "8", "9", "10", "11", "12", "SUPPORT", "SRC", "Connect Roll"];
-      students.sort((a, b) => {
-        const rollOrder = ["7", "8", "9", "10", "11", "12", "SUPPORT", "SRC", "Connect Roll"];
-        const aKey = a.rollClass?.toUpperCase() || '';
-        const bKey = b.rollClass?.toUpperCase() || '';
-      
-        const aIndex = rollOrder.findIndex(p => aKey.startsWith(p));
-        const bIndex = rollOrder.findIndex(p => bKey.startsWith(p));
-      
-        if (aIndex !== bIndex) return aIndex - bIndex;
-      
-        // If same roll group, sort by full roll class name (e.g. 10.1 before 10.2)
-        if (aKey !== bKey) return aKey.localeCompare(bKey);
-      
-        return a.surname.localeCompare(b.surname);
-      });
-      
-    } else {
-      students.sort((a, b) => a.surname.localeCompare(b.surname));
-    }
-  
-    return students;
+});
+
+historyScope.addEventListener("change", () => {
+  selectedStudentIds.clear();
+  renderStudentPicker();
+});
+
+studentSearch.addEventListener("input", renderStudentPicker);
+rollClassSelect.addEventListener("change", renderStudentPicker);
+yearGroupSelect.addEventListener("change", renderStudentPicker);
+
+studentPicker.addEventListener("change", (e) => {
+  if (!e.target.matches(".student-choice")) return;
+  const id = e.target.value;
+
+  if (historyScope.value === "single") {
+    selectedStudentIds.clear();
   }
-  
-  // Export
-  generateBtn.addEventListener("click", async () => {
-    const data = await fetchData();
-    const date = getFormattedDate();
-    const now = new Date();
-    const dateTimeString = now.toLocaleString("en-AU"); // e.g. 2025-06-29 10:01
-    const optionString = `${settings.content} list sorted by ${settings.sort}`;
-  
-    if (settings.format === "pdf") {
-      const doc = new jsPDF();
-      const head = settings.content === "detailed"
-        ? [["Student ID", "Surname", "Given Name(s)", "Roll Class", "Late Arrival Count", "Last Late Date", "Detentions Served", "Resolved?"]]
-        : [["Surname", "Given Name(s)", "Roll Class", "Late Arrival Count", "Detentions Served", "Resolved?"]];
-  
-      if (settings.sort === "roll") {
-        const rollOrder = ["7", "8", "9", "10", "11", "12", "SUPPORT", "SRC", "Connect Roll"];
-        const groups = {};
-  
-        data.forEach(d => {
-          const rc = d.rollClass || "Unknown";
-          if (!groups[rc]) groups[rc] = [];
-          groups[rc].push(d);
-        });
-  
-        const sortedRollClasses = Object.keys(groups).sort((a, b) => {
-          const ai = rollOrder.findIndex(prefix => a.toUpperCase().startsWith(prefix));
-          const bi = rollOrder.findIndex(prefix => b.toUpperCase().startsWith(prefix));
-          return (ai !== bi ? ai - bi : a.localeCompare(b));
-        });
-  
-        sortedRollClasses.forEach((rc, idx) => {
-          const groupData = groups[rc].map(d => settings.content === "detailed"
-            ? [d.studentId, d.surname, d.givenName, d.rollClass, d.truancyCount, d.lastDate, d.detentionsServed, d.resolved]
-            : [d.surname, d.givenName, d.rollClass, d.truancyCount, d.detentionsServed, d.resolved]);
-  
-          if (idx > 0) doc.addPage();
-  
-          doc.setFontSize(10);
-          doc.text(`Roll Class: ${rc}`, 14, 15);
-  
-          doc.autoTable({
-            startY: 20,
-            head,
-            body: groupData,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [41, 128, 185] }
-          });
-  
-          doc.setFontSize(8);
-          doc.text(`Generated: ${dateTimeString}`, 14, doc.lastAutoTable.finalY + 10);
-        });
-  
-      } else {
-        doc.setFontSize(10);
-        doc.text(`Student Lateness Report`, 14, 15);
-        doc.setFontSize(8);
-        doc.text(`Generated: ${dateTimeString}`, 14, 20);
-  
-        const body = data.map(d => settings.content === "detailed"
-          ? [d.studentId, d.surname, d.givenName, d.rollClass, d.truancyCount, d.lastDate, d.detentionsServed, d.resolved]
-          : [d.surname, d.givenName, d.rollClass, d.truancyCount, d.detentionsServed, d.resolved]);
-  
-        doc.autoTable({
-          startY: 25,
-          head,
-          body,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [41, 128, 185] }
-        });
-      }
-  
-      doc.save(`lateness_report_${date} (${optionString}).pdf`);
-    } else {
-        const workbook = XLSX.utils.book_new();
-      
-        if (settings.sort === "roll") {
-          const rollOrder = ["7", "8", "9", "10", "11", "12", "SUPPORT", "SRC", "Connect Roll"];
-          const groups = {};
-      
-          data.forEach(d => {
-            const rc = d.rollClass || "Unknown";
-            if (!groups[rc]) groups[rc] = [];
-            groups[rc].push(settings.content === "detailed" ? d : {
-              surname: d.surname,
-              givenName: d.givenName,
-              rollClass: d.rollClass,
-              truancyCount: d.truancyCount,
-              detentionsServed: d.detentionsServed,
-              resolved: d.resolved
-            });
-          });
-      
-          const sortedRollClasses = Object.keys(groups).sort((a, b) => {
-            const ai = rollOrder.findIndex(prefix => a.toUpperCase().startsWith(prefix));
-            const bi = rollOrder.findIndex(prefix => b.toUpperCase().startsWith(prefix));
-            return (ai !== bi ? ai - bi : a.localeCompare(b));
-          });
-      
-          sortedRollClasses.forEach(rc => {
-            const groupData = groups[rc];
-            const rows = [
-              [{ A: `Generated: ${dateTimeString}` }],  // timestamp row
-              ...groupData
-            ];
-            const ws = XLSX.utils.json_to_sheet([], { skipHeader: true }); // create empty sheet
-      
-            // Add timestamp manually as a cell
-            XLSX.utils.sheet_add_aoa(ws, [[`Generated: ${dateTimeString}`]], { origin: "A1" });
-      
-            // Add column headers and data
-            XLSX.utils.sheet_add_json(ws, groupData, {
-              origin: "A3", // leave rows A1 and A2 for spacing
-              skipHeader: false
-            });
-      
-            XLSX.utils.book_append_sheet(workbook, ws, rc);
-          });
-      
-        } else {
-          const exportData = data.map(d => settings.content === "detailed" ? d : {
-            surname: d.surname,
-            givenName: d.givenName,
-            rollClass: d.rollClass,
-            truancyCount: d.truancyCount,
-            detentionsServed: d.detentionsServed,
-            resolved: d.resolved
-          });
-      
-          const ws = XLSX.utils.json_to_sheet([], { skipHeader: true });
-          XLSX.utils.sheet_add_aoa(ws, [[`Generated: ${dateTimeString}`]], { origin: "A1" });
-          XLSX.utils.sheet_add_json(ws, exportData, { origin: "A3", skipHeader: false });
-      
-          XLSX.utils.book_append_sheet(workbook, ws, "Lateness Report");
-        }
-      
-        XLSX.writeFile(workbook, `lateness_report_${date} (${optionString}).xlsx`);
-      }
-      
+
+  if (e.target.checked) {
+    selectedStudentIds.add(id);
+  } else {
+    selectedStudentIds.delete(id);
+  }
+
+  renderStudentPicker();
+});
+
+generateSummaryBtn.addEventListener("click", () => {
+  exportSummaryReport();
+});
+
+generateHistoryBtn.addEventListener("click", () => {
+  exportHistoryReport();
+});
+
+async function loadStudents() {
+  const snapshot = await getDocs(collection(db, "students"));
+  allStudents = snapshot.docs.map(docSnap => {
+    const data = docSnap.data();
+    return {
+      studentId: docSnap.id,
+      surname: data.surname || '',
+      givenName: data.givenName || '',
+      rollClass: data.rollClass || '',
+      yearGroup: getYearGroup(data.rollClass || ''),
+      lateCount: data.lateCount || data.truancyCount || 0,
+      detentionsServed: data.detentionsServed || 0,
+      escalated: !!data.escalated,
+      escalationReasons: data.escalationReasons || [],
+      lateArrivals: data.lateArrivals || data.truancies || [],
+      activeDetention: data.activeDetention || null
+    };
+  }).sort((a, b) => a.surname.localeCompare(b.surname) || a.givenName.localeCompare(b.givenName));
+}
+
+function renderFilters() {
+  const rollClasses = [...new Set(allStudents.map(student => student.rollClass).filter(Boolean))].sort();
+  const yearGroups = [...new Set(allStudents.map(student => student.yearGroup).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
+
+  rollClassSelect.innerHTML = '<option value="">All Roll Classes</option>' + rollClasses.map(value => `<option value="${value}">${value}</option>`).join('');
+  yearGroupSelect.innerHTML = '<option value="">All Year Groups</option>' + yearGroups.map(value => `<option value="${value}">${value}</option>`).join('');
+}
+
+function renderStudentPicker() {
+  const search = studentSearch.value.trim().toLowerCase();
+  const scope = historyScope.value;
+  const rollClass = rollClassSelect.value;
+  const yearGroup = yearGroupSelect.value;
+
+  const visibleStudents = allStudents.filter(student => {
+    if (rollClass && student.rollClass !== rollClass) return false;
+    if (yearGroup && student.yearGroup !== yearGroup) return false;
+
+    if (!search) return true;
+    return `${student.givenName} ${student.surname} ${student.rollClass}`.toLowerCase().includes(search);
   });
-  
-  
+
+  studentPicker.innerHTML = visibleStudents.map(student => `
+    <label class="student-choice-row ${scope === 'single' ? 'single-choice' : ''}">
+      <input
+        class="student-choice"
+        type="${scope === 'single' ? 'radio' : 'checkbox'}"
+        name="student-selection"
+        value="${student.studentId}"
+        ${selectedStudentIds.has(student.studentId) ? 'checked' : ''}
+      />
+      <span>${student.surname}, ${student.givenName} (${student.rollClass})</span>
+    </label>
+  `).join('');
+}
+
+function exportSummaryReport() {
+  const date = getFormattedDate();
+  const rows = allStudents.map(student => ({
+    surname: student.surname,
+    givenName: student.givenName,
+    rollClass: student.rollClass,
+    lateCount: student.lateCount,
+    detentionsServed: student.detentionsServed,
+    activeDetention: student.activeDetention?.scheduledForDate || 'None',
+    escalated: student.escalated ? 'Yes' : 'No',
+    escalationReasons: formatReasons(student.escalationReasons)
+  }));
+
+  if (exportFormat.value === "pdf") {
+    const doc = new jsPDF();
+    doc.text("Attendance Assistant Summary Report", 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [["Surname", "Given Name", "Roll Class", "Late Count", "Detentions Served", "Active Detention", "Escalated", "Reasons"]],
+      body: rows.map(row => [row.surname, row.givenName, row.rollClass, row.lateCount, row.detentionsServed, row.activeDetention, row.escalated, row.escalationReasons]),
+      styles: { fontSize: 8 }
+    });
+    doc.save(`attendance_summary_${date}.pdf`);
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Summary");
+  XLSX.writeFile(workbook, `attendance_summary_${date}.xlsx`);
+}
+
+function exportHistoryReport() {
+  const selectedStudents = resolveHistorySelection();
+  if (selectedStudents.length === 0) {
+    alert("Select at least one student for the history report.");
+    return;
+  }
+
+  const date = getFormattedDate();
+  const historyRows = selectedStudents.flatMap(student => {
+    const arrivals = [...student.lateArrivals].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    return arrivals.map(arrival => ({
+      studentId: student.studentId,
+      surname: student.surname,
+      givenName: student.givenName,
+      rollClass: student.rollClass,
+      date: arrival.date || '',
+      arrivalTime: arrival.arrivalTime || '',
+      minutesLate: arrival.minutesLate ?? '',
+      shorthand: arrival.shorthand || '',
+      description: arrival.description || '',
+      detentionAssignedFor: student.activeDetention?.scheduledForDate || '',
+      escalated: student.escalated ? 'Yes' : 'No'
+    }));
+  });
+
+  if (historyRows.length === 0) {
+    alert("No late-arrival history was found for the selected student(s).");
+    return;
+  }
+
+  if (exportFormat.value === "pdf") {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text("Student Late Arrival History", 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [["Student ID", "Surname", "Given Name", "Roll Class", "Date", "Arrival Time", "Minutes Late", "Shorthand", "Description", "Escalated"]],
+      body: historyRows.map(row => [row.studentId, row.surname, row.givenName, row.rollClass, row.date, row.arrivalTime, row.minutesLate, row.shorthand, row.description, row.escalated]),
+      styles: { fontSize: 8 }
+    });
+    doc.save(`student_history_${date}.pdf`);
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(historyRows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Student History");
+  XLSX.writeFile(workbook, `student_history_${date}.xlsx`);
+}
+
+function resolveHistorySelection() {
+  const scope = historyScope.value;
+  const rollClass = rollClassSelect.value;
+  const yearGroup = yearGroupSelect.value;
+
+  if (scope === "rollClass") {
+    return allStudents.filter(student => !rollClass || student.rollClass === rollClass);
+  }
+
+  if (scope === "yearGroup") {
+    return allStudents.filter(student => !yearGroup || student.yearGroup === yearGroup);
+  }
+
+  return allStudents.filter(student => selectedStudentIds.has(student.studentId));
+}
+
+function getFormattedDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getYearGroup(rollClass) {
+  const match = String(rollClass).match(/\d+/);
+  return match ? match[0] : '';
+}
+
+function formatReasons(reasons) {
+  if (!reasons || reasons.length === 0) return 'No';
+  return reasons.join(', ');
+}

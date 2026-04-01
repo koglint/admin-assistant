@@ -90,6 +90,7 @@ sortSelect.addEventListener("change", () => {
 
 selectAllBtn.addEventListener("click", () => {
   filteredDetentionData.forEach(student => {
+    if (student.escalated) return;
     selectedStudentIds.add(student.studentId);
   });
   renderDetentionTable(filteredDetentionData);
@@ -111,15 +112,26 @@ markPresentBtn.addEventListener("click", async () => {
   if (!confirmed) return;
 
   await updateSelectedStudents(selectedIds, async (ref, data) => {
+    const activeDetention = data.activeDetention;
+    if (!activeDetention || activeDetention.status !== "open") {
+      return;
+    }
+
     const currentCount = data.detentionsServed || 0;
     const today = new Date().toISOString().split("T")[0];
-    const latestTruancyDate = getLatestTruancyDate(data.truancies);
-    const truancyResolved = Boolean(latestTruancyDate && today >= latestTruancyDate);
+    const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
+    history.push({
+      date: today,
+      scheduledForDate: activeDetention.scheduledForDate,
+      outcome: "served"
+    });
 
     await updateDoc(ref, {
       detentionsServed: currentCount + 1,
       lastDetentionServedDate: today,
-      truancyResolved
+      truancyResolved: true,
+      activeDetention: null,
+      detentionHistory: history
     });
   });
 
@@ -136,10 +148,22 @@ markAbsentBtn.addEventListener("click", async () => {
   const confirmed = confirm(`Mark ${selectedIds.length} student(s) as absent for detention? This will keep them unresolved.`);
   if (!confirmed) return;
 
-  await updateSelectedStudents(selectedIds, async (ref) => {
+  await updateSelectedStudents(selectedIds, async (ref, data) => {
+    const today = new Date().toISOString().split("T")[0];
+    const activeDetention = data.activeDetention;
+    if (!activeDetention || activeDetention.status !== "open") {
+      return;
+    }
+
     await updateDoc(ref, {
       truancyResolved: false,
-      lastDetentionServedDate: deleteField()
+      lastDetentionServedDate: deleteField(),
+      activeDetention: {
+        ...activeDetention,
+        lastRollMark: "absent",
+        lastRollMarkedAt: today,
+        pendingAttendanceCheckDate: today
+      }
     });
   });
 
@@ -172,10 +196,32 @@ tableBody.addEventListener("click", async (e) => {
       const currentCount = student.detentionsServed || 0;
 
       if (currentCount > 0) {
+        const history = Array.isArray(student.detentionHistory) ? [...student.detentionHistory] : [];
+        const lastServedIndex = [...history].reverse().findIndex(entry => entry.outcome === "served");
+        let reopenedDetention = student.activeDetention || null;
+
+        if (lastServedIndex !== -1) {
+          const actualIndex = history.length - 1 - lastServedIndex;
+          const servedEntry = history.splice(actualIndex, 1)[0];
+          reopenedDetention = {
+            status: "open",
+            createdFromLateDate: servedEntry.date,
+            scheduledForDate: new Date().toISOString().split("T")[0],
+            sourceUploadType: "manual_reopen",
+            createdAt: new Date().toISOString(),
+            lastRollMark: null,
+            lastRollMarkedAt: null,
+            pendingAttendanceCheckDate: null,
+            missedWhilePresentCount: 0
+          };
+        }
+
         await updateDoc(ref, {
           detentionsServed: currentCount - 1,
           truancyResolved: false,
-          lastDetentionServedDate: deleteField()
+          lastDetentionServedDate: deleteField(),
+          activeDetention: reopenedDetention,
+          detentionHistory: history
         });
 
         selectedStudentIds.delete(studentId);
@@ -206,6 +252,9 @@ tableBody.addEventListener("click", async (e) => {
 
       if (!newValue) {
         updates.lastDetentionServedDate = deleteField();
+        updates.activeDetention = studentToManualDetention(studentId);
+      } else {
+        updates.activeDetention = null;
       }
 
       await updateDoc(ref, updates);
@@ -236,6 +285,7 @@ async function loadDetentionSummary() {
       givenName: student.givenName || "",
       surname: student.surname || "",
       rollClass: student.rollClass || "",
+      yearGroup: getYearGroup(student.rollClass || ""),
       latestDate: latest?.date ?? '-',
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
@@ -279,6 +329,10 @@ function compareStudents(a, b) {
     return String(valB).localeCompare(String(valA));
   }
 
+  if (key === "yearGroup") {
+    return Number(valA) - Number(valB) || String(a.surname).localeCompare(String(b.surname));
+  }
+
   const primary = String(valA).localeCompare(String(valB));
   if (primary !== 0) return primary;
 
@@ -298,13 +352,13 @@ function renderDetentionTable(data) {
     tr.setAttribute("data-resolved", student.truancyResolved);
 
     if (student.escalated) {
-      tr.classList.add("escalated-row");
+      tr.classList.add("escalated-row", "disabled-row");
     }
 
     tr.innerHTML = `
-      <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""}></td>
-      <td>${student.givenName}</td>
-      <td>${student.surname}</td>
+      <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""} ${student.escalated ? "disabled" : ""}></td>
+      <td class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
+      <td class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
       <td>${student.rollClass}</td>
       <td>${student.latestDate}</td>
       <td>${student.truancyCount}</td>
@@ -329,13 +383,9 @@ function updateStats() {
   tableStats.textContent = `${visibleCount} student(s) visible, ${selectedVisibleCount} selected in this view.`;
 }
 
-function getLatestTruancyDate(truancies) {
-  if (!Array.isArray(truancies) || truancies.length === 0) return null;
-
-  return truancies
-    .map(t => new Date(t.date))
-    .sort((a, b) => b - a)[0]
-    ?.toISOString().split("T")[0] || null;
+function getYearGroup(rollClass) {
+  const match = String(rollClass).match(/\d+/);
+  return match ? match[0] : "Other";
 }
 
 async function updateSelectedStudents(selectedIds, updater) {
@@ -344,11 +394,29 @@ async function updateSelectedStudents(selectedIds, updater) {
       const ref = doc(db, "students", studentId);
       const snap = await getDoc(ref);
       const data = snap.data();
-      await updater(ref, data);
+      if (data?.escalated) {
+        continue;
+      }
+      await updater(ref, data, data);
     } catch (err) {
       console.error(`Failed to update ${studentId}`, err);
     }
   }
 
   await loadDetentionSummary();
+}
+
+function studentToManualDetention() {
+  const today = new Date().toISOString().split("T")[0];
+  return {
+    status: "open",
+    createdFromLateDate: today,
+    scheduledForDate: today,
+    sourceUploadType: "manual_toggle",
+    createdAt: new Date().toISOString(),
+    lastRollMark: null,
+    lastRollMarkedAt: null,
+    pendingAttendanceCheckDate: null,
+    missedWhilePresentCount: 0
+  };
 }

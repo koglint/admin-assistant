@@ -63,6 +63,11 @@
                 <p><strong>How this upload is processed:</strong> the parser checks the <code>Description</code> column and processes any row containing <code>absent</code> or <code>unjustified</code>. It then reads the <code>Time</code> column, splits on <code>-</code>, takes the right-hand side as the arrival time, and compares that time to <code>08:35</code>.</p>
             </section>
             <form id="upload-form">
+                <select id="upload-type" required>
+                    <option value="">Select Upload Type</option>
+                    <option value="midday">Midday Upload</option>
+                    <option value="end_of_day">End of Day Upload</option>
+                </select>
                 <input type="file" id="xls-file" accept=".xls,.xlsx" required />
                 <button type="submit">Upload</button>
             </form>

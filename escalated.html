@@ -25,10 +25,12 @@
         <a href="admin.html">Admin</a>
     </nav>
 
-    <section>
-        <h2>Manually Escalate Student</h2>
-        <input type="text" id="search-input" placeholder="Search by name or roll class" />
-        <ul id="search-results"></ul>
+    <section class="control-panel">
+        <div class="panel-block">
+            <h2>Manually Escalate Student</h2>
+            <input type="text" id="search-input" placeholder="Search by name or roll class" />
+            <ul id="search-results"></ul>
+        </div>
     </section>
 
     <h2>Currently Escalated</h2>
@@ -37,8 +39,10 @@
             <tr>
                 <th>Name</th>
                 <th>Roll Class</th>
-                <th>Total Truancies</th>
-                <th>Action</th>
+                <th>Late Count</th>
+                <th>Reasons</th>
+                <th>Detention Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody id="escalated-body">
