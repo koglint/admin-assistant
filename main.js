@@ -201,30 +201,18 @@ tableHeaders.forEach((header, idx) => {
 
 const form = document.getElementById('upload-form');
 const fileInput = document.getElementById('xls-file');
-const uploadTypeInput = document.getElementById('upload-type');
 const statusDiv = document.getElementById('upload-status');
 
 const BACKEND_URL = "https://admin-assistant-backend.onrender.com/upload";
 
-if (form && fileInput && uploadTypeInput && statusDiv) {
+if (form && fileInput && statusDiv) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const file = fileInput.files[0];
-    const uploadType = uploadTypeInput.value;
     if (!file) return;
-    if (!uploadType) {
-      statusDiv.textContent = "Select whether this is the midday upload or the end-of-day upload.";
-      return;
-    }
-
-    const timeCheckMessage = getUploadTimeCheck(uploadType);
-    if (timeCheckMessage && !window.confirm(`${timeCheckMessage} Do you still want to continue?`)) {
-      return;
-    }
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('uploadType', uploadType);
 
     statusDiv.textContent = "Uploading...";
 
@@ -236,7 +224,7 @@ if (form && fileInput && uploadTypeInput && statusDiv) {
 
       const data = await response.json();
       if (response.ok && data.status === "success") {
-        statusDiv.textContent = `Uploaded! ${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned.`;
+        statusDiv.textContent = `Uploaded as ${formatUploadType(data.uploadType)}. ${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned.`;
         if (data.warning) {
           alert(data.warning);
         }
@@ -251,17 +239,6 @@ if (form && fileInput && uploadTypeInput && statusDiv) {
   });
 }
 
-function getUploadTimeCheck(uploadType) {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-
-  if (uploadType === "midday" && (minutes < 10 * 60 || minutes > 12 * 60 + 30)) {
-    return "This looks outside the usual midday upload window.";
-  }
-
-  if (uploadType === "end_of_day" && (minutes < 14 * 60 || minutes > 18 * 60)) {
-    return "This looks outside the usual end-of-day upload window.";
-  }
-
-  return "";
+function formatUploadType(uploadType) {
+  return uploadType === "end_of_day" ? "end-of-day upload" : "midday upload";
 }
