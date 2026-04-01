@@ -213,7 +213,6 @@ if (form && fileInput && statusDiv) {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('uploadType', inferLegacyUploadType());
 
     statusDiv.textContent = "Uploading...";
 
@@ -225,10 +224,7 @@ if (form && fileInput && statusDiv) {
 
       const data = await response.json();
       if (response.ok && data.status === "success") {
-        statusDiv.textContent = `Uploaded as ${formatUploadType(data.uploadType)}. ${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned.`;
-        if (data.warning) {
-          alert(data.warning);
-        }
+        statusDiv.textContent = buildUploadStatus(data);
         loadTruancies();
       } else {
         statusDiv.textContent = data.message || "Upload failed. Check file format.";
@@ -240,11 +236,20 @@ if (form && fileInput && statusDiv) {
   });
 }
 
-function formatUploadType(uploadType) {
-  return uploadType === "end_of_day" ? "end-of-day upload" : "midday upload";
-}
+function buildUploadStatus(data) {
+  const reportDate = data.reportDate ? `Processed report for ${data.reportDate}. ` : "Processed upload. ";
+  const latestObserved = data.latestObservedTime
+    ? `Latest time found in the report: ${data.latestObservedTime}. `
+    : "";
+  const coverage = data.coversFullDay
+    ? "This file appears to include full-day absence coverage. "
+    : "This file does not yet appear to show full-day absence coverage, so some detention absence checks may stay pending until a later report is uploaded. ";
+  const checksCompleted = data.detentionChecksCompleted
+    ? `${data.detentionChecksCompleted} pending detention attendance check(s) were completed. `
+    : "";
+  const checksWaiting = data.pendingDetentionChecks
+    ? `${data.pendingDetentionChecks} detention attendance check(s) are still waiting for fuller attendance data for that date.`
+    : "";
 
-function inferLegacyUploadType() {
-  const now = new Date();
-  return now.getHours() < 13 ? "midday" : "end_of_day";
+  return `${reportDate}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${checksCompleted}${latestObserved}${coverage}${checksWaiting}`.trim();
 }

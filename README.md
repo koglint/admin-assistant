@@ -24,20 +24,38 @@ Because this app is static, almost all business logic lives in the page scripts.
 
 ## Page Overview
 
-### `index.html` + `main.js`
+### `index.html`
 
-This is the home page and daily working screen.
+This is the launcher home page.
 
 What it does:
 
 - Prompts staff to sign in with Google.
-- Lets the user upload an `.xls` or `.xlsx` attendance export.
-- Loads student records from the `students` Firestore collection.
-- Shows only students with unresolved, unjustified truancies.
-- Displays a summary table with drill-down details for each student.
-- Sorts the table by clicking column headers.
+- Shows the main action cards used to move through the workflow.
 
-The upload flow is:
+### `upload-data.html` + `main.js`
+
+This page handles attendance uploads.
+
+What it does:
+
+- Lets the user upload a Sentral `.xls` or `.xlsx` absence export.
+- Sends the file to the backend `POST /upload` endpoint using `FormData`.
+- Shows a processing summary returned by the backend.
+- No longer asks the user to decide whether the file is a midday or end-of-day upload.
+
+The backend now decides what the file proves from the spreadsheet contents themselves:
+
+- late-to-school rows are identified from roll-call absence entries
+- same-day versus next-day detention is decided from the student arrival time compared with first break
+- repeated uploads for the same report date are allowed
+- detention absence checks stay pending until a later report contains enough day coverage to resolve them
+
+### `late-data.html` + `main.js`
+
+This page shows the current late-arrivals table.
+
+The late-data flow is:
 
 1. The user chooses an attendance file.
 2. `main.js` sends it to the backend `POST /upload` endpoint using `FormData`.
@@ -208,8 +226,8 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 ## Typical Workflow
 
 1. Sign in on the home page.
-2. Upload a fresh attendance spreadsheet.
-3. Review unresolved late arrivals on the home page.
+2. Upload a fresh attendance spreadsheet on the Upload Attendance Data page.
+3. Review unresolved late arrivals on the View Late Data page.
 4. Move to the Detentions page to record served detentions.
 5. Use the Escalated page for students needing manual escalation.
 6. Use the Reports page to export summaries for staff use.
