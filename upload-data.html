@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Upload Attendance Data</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="main.js"></script>
+</head>
+
+<body>
+    <h1>Upload Attendance Data</h1>
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="detentions.html">Mark Detention Roll</a>
+        <a href="upload-data.html">Upload Attendance Data</a>
+        <a href="late-data.html">View Late Data</a>
+        <a href="reports.html">Create a Report</a>
+        <a href="escalated.html">Escalate a Student</a>
+        <a href="admin.html">Admin</a>
+    </nav>
+
+    <div id="content" style="display:none;">
+        <section id="upload-section">
+            <h2>Upload Workflow</h2>
+            <section class="upload-guide">
+                <p><strong>When to export:</strong> upload one Sentral absence export after Period 2 and before second break, then upload the full-day export again after Period 5.</p>
+                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export</p>
+                <p><strong>File type:</strong> upload the Sentral <code>.xls</code> absence export.</p>
+                <p><strong>How the app now decides the upload type:</strong> the backend infers whether the file is the earlier upload or the end-of-day upload by checking the report date, any earlier upload already stored for that date, the current Sydney time, and the number of data rows compared with the earlier file.</p>
+                <p><strong>How lateness is identified:</strong> the parser only treats missed roll-call rows as late-to-school cases. It looks for <code>Shorthand</code> / <code>Description</code> combinations of <code>U + Unjustified</code> or <code>? + Absent</code>, and requires the left side of the <code>Time</code> range to start at <code>8:00AM</code> or <code>8:25AM</code>.</p>
+                <p><strong>Arrival time and lateness:</strong> the code splits the <code>Time</code> value on <code>-</code>, uses the right-hand side as the arrival time, and measures lateness against <code>8:35AM</code>.</p>
+                <p><strong>Detention flow:</strong> students found in the earlier upload can be scheduled for same-day second break, while students only found in the end-of-day upload are carried to the next school day.</p>
+            </section>
+            <form id="upload-form">
+                <input type="file" id="xls-file" accept=".xls,.xlsx" required />
+                <button type="submit">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </section>
+    </div>
+</body>
+
+</html>

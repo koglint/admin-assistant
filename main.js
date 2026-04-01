@@ -213,6 +213,7 @@ if (form && fileInput && statusDiv) {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('uploadType', inferLegacyUploadType());
 
     statusDiv.textContent = "Uploading...";
 
@@ -241,4 +242,9 @@ if (form && fileInput && statusDiv) {
 
 function formatUploadType(uploadType) {
   return uploadType === "end_of_day" ? "end-of-day upload" : "midday upload";
+}
+
+function inferLegacyUploadType() {
+  const now = new Date();
+  return now.getHours() < 13 ? "midday" : "end_of_day";
 }

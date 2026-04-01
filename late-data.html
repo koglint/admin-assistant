@@ -18,7 +18,7 @@
     <nav class="navbar">
         <a href="index.html">Home</a>
         <a href="detentions.html">Mark Detention Roll</a>
-        <a href="late-data.html#upload-section">Upload Attendance Data</a>
+        <a href="upload-data.html">Upload Attendance Data</a>
         <a href="late-data.html">View Late Data</a>
         <a href="reports.html">Create a Report</a>
         <a href="escalated.html">Escalate a Student</a>
@@ -26,23 +26,8 @@
     </nav>
 
     <div id="content" style="display:none;">
-        <section id="upload-section">
-            <h2>Upload Attendance Data</h2>
-            <section class="upload-guide">
-                <p><strong>Daily workflow:</strong> At COB each day, HT Admin (Student) exports the absence report for the day as an Excel file from Sentral.</p>
-                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export</p>
-                <p><strong>How this upload is processed:</strong> the parser checks the <code>Description</code> column and processes any row containing <code>absent</code> or <code>unjustified</code>. It then reads the <code>Time</code> column, splits on <code>-</code>, takes the right-hand side as the arrival time, and compares that time to <code>08:35</code>.</p>
-            </section>
-            <form id="upload-form">
-                <input type="file" id="xls-file" accept=".xls,.xlsx" required />
-                <button type="submit">Upload</button>
-            </form>
-            <div id="upload-status"></div>
-        </section>
-
-        <hr />
-
         <h2>Current Late Arrivals</h2>
+        <p class="muted-text">This page is the live view of students currently recorded as owing follow-up for late arrival data already uploaded into the system.</p>
         <table id="truancy-table">
             <thead>
                 <tr>
