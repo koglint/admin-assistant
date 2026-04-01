@@ -22,7 +22,6 @@ const userInfo = document.getElementById('user-info');
 const content = document.getElementById('content');
 const tableBody = document.getElementById("detention-body");
 const markPresentBtn = document.getElementById("mark-present-btn");
-const markAbsentBtn = document.getElementById("mark-absent-btn");
 const selectAllBtn = document.getElementById("select-all-btn");
 const unselectAllBtn = document.getElementById("unselect-all-btn");
 const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
@@ -141,39 +140,9 @@ markPresentBtn.addEventListener("click", async () => {
     });
   });
 
+  clearSelectedStudents();
+  renderDetentionTable(filteredDetentionData);
   alert("Selected students marked present.");
-});
-
-markAbsentBtn.addEventListener("click", async () => {
-  const selectedIds = [...selectedStudentIds];
-  if (selectedIds.length === 0) {
-    alert("No students selected.");
-    return;
-  }
-
-  const confirmed = confirm(`Mark ${selectedIds.length} student(s) as absent for detention? This will keep them unresolved.`);
-  if (!confirmed) return;
-
-  await updateSelectedStudents(selectedIds, async (ref, data) => {
-    const today = new Date().toISOString().split("T")[0];
-    const activeDetention = data.activeDetention;
-    if (!activeDetention || activeDetention.status !== "open") {
-      return;
-    }
-
-    await updateDoc(ref, {
-      truancyResolved: false,
-      lastDetentionServedDate: deleteField(),
-      activeDetention: {
-        ...activeDetention,
-        lastRollMark: "absent",
-        lastRollMarkedAt: today,
-        pendingAttendanceCheckDate: today
-      }
-    });
-  });
-
-  alert("Selected students marked absent.");
 });
 
 tableBody.addEventListener("change", (e) => {
@@ -293,7 +262,7 @@ async function loadDetentionSummary() {
       givenName: student.givenName || "",
       surname: student.surname || "",
       rollClass: student.rollClass || "",
-      yearGroup: getYearGroup(student.rollClass || ""),
+      yearGroup: student.yearGroup || getYearGroup(student.rollClass || ""),
       latestDate: latest?.date ?? '-',
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
@@ -395,6 +364,11 @@ function updateSortButtons() {
 
 function persistSelectedStudents() {
   localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify([...selectedStudentIds]));
+}
+
+function clearSelectedStudents() {
+  selectedStudentIds.clear();
+  persistSelectedStudents();
 }
 
 function restoreSelectedStudents() {

@@ -102,7 +102,7 @@ async function loadStudents() {
       surname: data.surname || '',
       givenName: data.givenName || '',
       rollClass: data.rollClass || '',
-      yearGroup: getYearGroup(data.rollClass || ''),
+      yearGroup: data.yearGroup || getYearGroup(data.rollClass || ''),
       lateCount: data.lateCount || data.truancyCount || 0,
       detentionsServed: data.detentionsServed || 0,
       escalated: !!data.escalated,
