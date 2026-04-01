@@ -303,7 +303,17 @@ function compareStudents(a, b) {
   const valB = b[key];
 
   if (key === "yearGroup") {
-    return Number(valA) - Number(valB) || String(a.surname).localeCompare(String(b.surname));
+    const numericA = Number.parseInt(valA, 10);
+    const numericB = Number.parseInt(valB, 10);
+    const bothNumeric = !Number.isNaN(numericA) && !Number.isNaN(numericB);
+
+    if (bothNumeric && numericA !== numericB) {
+      return numericA - numericB;
+    }
+
+    const yearTextCompare = String(valA).localeCompare(String(valB));
+    if (yearTextCompare !== 0) return yearTextCompare;
+    return String(a.surname).localeCompare(String(b.surname)) || String(a.givenName).localeCompare(String(b.givenName));
   }
 
   const primary = String(valA).localeCompare(String(valB));
@@ -332,6 +342,7 @@ function renderDetentionTable(data) {
       <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""} ${student.escalated ? "disabled" : ""}></td>
       <td class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
       <td class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
+      <td>${student.yearGroup || '-'}</td>
       <td>${student.rollClass}</td>
       <td>${student.latestDate}</td>
       <td>${student.truancyCount}</td>
