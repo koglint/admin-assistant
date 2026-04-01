@@ -28,8 +28,9 @@ const unselectAllBtn = document.getElementById("unselect-all-btn");
 const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 const searchInput = document.getElementById("detention-search");
-const sortSelect = document.getElementById("sort-select");
+const sortButtons = document.querySelectorAll(".sort-btn");
 const tableStats = document.getElementById("table-stats");
+const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
 
 let showEscalated = false;
 let hideResolved = false;
@@ -83,9 +84,12 @@ searchInput.addEventListener("input", () => {
   applyFiltersAndRender();
 });
 
-sortSelect.addEventListener("change", () => {
-  sortKey = sortSelect.value;
-  applyFiltersAndRender();
+sortButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    sortKey = button.dataset.sortKey || "surname";
+    updateSortButtons();
+    applyFiltersAndRender();
+  });
 });
 
 selectAllBtn.addEventListener("click", () => {
@@ -93,11 +97,13 @@ selectAllBtn.addEventListener("click", () => {
     if (student.escalated) return;
     selectedStudentIds.add(student.studentId);
   });
+  persistSelectedStudents();
   renderDetentionTable(filteredDetentionData);
 });
 
 unselectAllBtn.addEventListener("click", () => {
   selectedStudentIds.clear();
+  persistSelectedStudents();
   renderDetentionTable(filteredDetentionData);
 });
 
@@ -180,6 +186,7 @@ tableBody.addEventListener("change", (e) => {
     selectedStudentIds.delete(studentId);
   }
 
+  persistSelectedStudents();
   updateStats();
 });
 
@@ -225,6 +232,7 @@ tableBody.addEventListener("click", async (e) => {
         });
 
         selectedStudentIds.delete(studentId);
+        persistSelectedStudents();
         await loadDetentionSummary();
         alert("Detention record updated.");
       } else {
@@ -268,7 +276,7 @@ tableBody.addEventListener("click", async (e) => {
 });
 
 async function loadDetentionSummary() {
-  selectedStudentIds.clear();
+  restoreSelectedStudents();
   detentionDataCache = [];
 
   const snapshot = await getDocs(collection(db, "students"));
@@ -325,10 +333,6 @@ function compareStudents(a, b) {
   const valA = a[key];
   const valB = b[key];
 
-  if (key === "latestDate") {
-    return String(valB).localeCompare(String(valA));
-  }
-
   if (key === "yearGroup") {
     return Number(valA) - Number(valB) || String(a.surname).localeCompare(String(b.surname));
   }
@@ -383,6 +387,36 @@ function updateStats() {
   tableStats.textContent = `${visibleCount} student(s) visible, ${selectedVisibleCount} selected in this view.`;
 }
 
+function updateSortButtons() {
+  sortButtons.forEach(button => {
+    button.classList.toggle("active", button.dataset.sortKey === sortKey);
+  });
+}
+
+function persistSelectedStudents() {
+  localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify([...selectedStudentIds]));
+}
+
+function restoreSelectedStudents() {
+  try {
+    const stored = localStorage.getItem(SELECTION_STORAGE_KEY);
+    selectedStudentIds.clear();
+    if (!stored) return;
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return;
+
+    parsed.forEach(studentId => {
+      if (typeof studentId === "string" && studentId) {
+        selectedStudentIds.add(studentId);
+      }
+    });
+  } catch (err) {
+    console.error("Failed to restore detention selections", err);
+    selectedStudentIds.clear();
+  }
+}
+
 function getYearGroup(rollClass) {
   const match = String(rollClass).match(/\d+/);
   return match ? match[0] : "Other";
@@ -403,6 +437,7 @@ async function updateSelectedStudents(selectedIds, updater) {
     }
   }
 
+  persistSelectedStudents();
   await loadDetentionSummary();
 }
 

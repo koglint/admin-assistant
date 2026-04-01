@@ -32,14 +32,13 @@
                 <input type="text" id="detention-search" placeholder="Search by first name, surname, or roll class" />
             </div>
             <div class="panel-block">
-                <label for="sort-select"><strong>Sort Order</strong></label>
-                <select id="sort-select">
-                    <option value="surname">Last Name</option>
-                    <option value="givenName">First Name</option>
-                    <option value="yearGroup">Year Group</option>
-                    <option value="rollClass">Roll Class</option>
-                    <option value="latestDate">Last Late</option>
-                </select>
+                <strong>Sort Order</strong>
+                <div id="sort-button-group" class="sort-button-group">
+                    <button type="button" class="sort-btn active" data-sort-key="surname">Surname</button>
+                    <button type="button" class="sort-btn" data-sort-key="givenName">First Name</button>
+                    <button type="button" class="sort-btn" data-sort-key="rollClass">Roll Class</button>
+                    <button type="button" class="sort-btn" data-sort-key="yearGroup">Year Group</button>
+                </div>
             </div>
             <div class="panel-block">
                 <strong>Current View</strong>

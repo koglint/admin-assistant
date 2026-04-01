@@ -313,6 +313,28 @@ td:nth-child(7) {
   gap: 8px;
 }
 
+.sort-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sort-btn {
+  background: #eaf1f7;
+  color: #1f2d3d;
+  border: 1px solid #c9d7e5;
+}
+
+.sort-btn:hover {
+  background: #dce8f3;
+}
+
+.sort-btn.active {
+  background: #2980b9;
+  color: white;
+  border-color: #2980b9;
+}
+
 .action-toolbar {
   display: flex;
   flex-wrap: wrap;
