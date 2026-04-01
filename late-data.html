@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Late Data</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="main.js"></script>
+</head>
+
+<body>
+    <h1>Late Data</h1>
+    <div id="auth-section">
+        <button id="login-btn">Sign In with Google</button>
+        <button id="logout-btn" style="display:none;">Sign Out</button>
+        <p id="user-info"></p>
+    </div>
+    <nav class="navbar">
+        <a href="index.html">Home</a>
+        <a href="late-data.html">Late Data</a>
+        <a href="detentions.html">Detentions</a>
+        <a href="reports.html">Reports</a>
+        <a href="escalated.html">Escalated Students</a>
+        <a href="admin.html">Admin</a>
+    </nav>
+
+    <div id="content" style="display:none;">
+        <section id="upload-section">
+            <h2>Upload Attendance Data</h2>
+            <section class="upload-guide">
+                <p><strong>Daily workflow:</strong> At COB each day, HT Admin (Student) exports the absence report for the day as an Excel file from Sentral.</p>
+                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export</p>
+                <p><strong>How this upload is processed:</strong> the parser checks the <code>Description</code> column and processes any row containing <code>absent</code> or <code>unjustified</code>. It then reads the <code>Time</code> column, splits on <code>-</code>, takes the right-hand side as the arrival time, and compares that time to <code>08:35</code>.</p>
+            </section>
+            <form id="upload-form">
+                <select id="upload-type" required>
+                    <option value="">Select Upload Type</option>
+                    <option value="midday">Midday Upload</option>
+                    <option value="end_of_day">End of Day Upload</option>
+                </select>
+                <input type="file" id="xls-file" accept=".xls,.xlsx" required />
+                <button type="submit">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </section>
+
+        <hr />
+
+        <h2>Current Late Arrivals</h2>
+        <table id="truancy-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Given Name</th>
+                    <th>Surname</th>
+                    <th>Late Count</th>
+                    <th>Roll Class</th>
+                    <th>Last Late</th>
+                    <th>Last (Arrival)</th>
+                    <th>Last (Minutes)</th>
+                    <th>Total Late</th>
+                    <th>Resolved?</th>
+                </tr>
+            </thead>
+            <tbody id="truancy-body">
+                <!-- Filled dynamically -->
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>

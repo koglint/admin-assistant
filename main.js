@@ -45,7 +45,9 @@ onAuthStateChanged(auth, (user) => {
     logoutBtn.classList.add("inline-block");
     content.classList.remove("hidden");
     content.classList.add("visible");
-    loadTruancies();
+    if (tableBody) {
+      loadTruancies();
+    }
   } else {
     userInfo.textContent = "";
     loginBtn.classList.remove("hidden");
@@ -56,6 +58,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 async function loadTruancies() {
+  if (!tableBody) return;
   tableBody.innerHTML = "";
   studentDataCache = [];
 
@@ -92,6 +95,7 @@ async function loadTruancies() {
 }
 
 function renderTable(data) {
+  if (!tableBody) return;
   tableBody.innerHTML = "";
   data.forEach((student, index) => {
     const tr = document.createElement("tr");
@@ -137,6 +141,7 @@ function renderTable(data) {
 }
 
 document.addEventListener("click", (e) => {
+  if (!tableBody) return;
   if (e.target.matches(".toggle-details")) {
     const index = Number(e.target.dataset.index);
     const detailsRow = tableBody.querySelectorAll(".details-row")[index];
@@ -201,48 +206,50 @@ const statusDiv = document.getElementById('upload-status');
 
 const BACKEND_URL = "https://admin-assistant-backend.onrender.com/upload";
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const file = fileInput.files[0];
-  const uploadType = uploadTypeInput.value;
-  if (!file) return;
-  if (!uploadType) {
-    statusDiv.textContent = "Select whether this is the midday upload or the end-of-day upload.";
-    return;
-  }
-
-  const timeCheckMessage = getUploadTimeCheck(uploadType);
-  if (timeCheckMessage && !window.confirm(`${timeCheckMessage} Do you still want to continue?`)) {
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('uploadType', uploadType);
-
-  statusDiv.textContent = "Uploading...";
-
-  try {
-    const response = await fetch(BACKEND_URL, {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await response.json();
-    if (response.ok && data.status === "success") {
-      statusDiv.textContent = `Uploaded! ${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned.`;
-      if (data.warning) {
-        alert(data.warning);
-      }
-      loadTruancies();
-    } else {
-      statusDiv.textContent = data.message || "Upload failed. Check file format.";
+if (form && fileInput && uploadTypeInput && statusDiv) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = fileInput.files[0];
+    const uploadType = uploadTypeInput.value;
+    if (!file) return;
+    if (!uploadType) {
+      statusDiv.textContent = "Select whether this is the midday upload or the end-of-day upload.";
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    statusDiv.textContent = "Error uploading file.";
-  }
-});
+
+    const timeCheckMessage = getUploadTimeCheck(uploadType);
+    if (timeCheckMessage && !window.confirm(`${timeCheckMessage} Do you still want to continue?`)) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadType', uploadType);
+
+    statusDiv.textContent = "Uploading...";
+
+    try {
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === "success") {
+        statusDiv.textContent = `Uploaded! ${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned.`;
+        if (data.warning) {
+          alert(data.warning);
+        }
+        loadTruancies();
+      } else {
+        statusDiv.textContent = data.message || "Upload failed. Check file format.";
+      }
+    } catch (err) {
+      console.error(err);
+      statusDiv.textContent = "Error uploading file.";
+    }
+  });
+}
 
 function getUploadTimeCheck(uploadType) {
   const now = new Date();
