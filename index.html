@@ -21,22 +21,55 @@
         <a href="reports.html">Reports</a>
         <a href="escalated.html">Escalated Students</a>
         <a href="admin.html">Admin</a>
-
     </nav>
-      
-
 
     <div id="content" style="display:none;">
-        <h2>Upload Attendance File</h2>
-        <form id="upload-form">
-            <input type="file" id="xls-file" accept=".xls,.xlsx" required />
-            <button type="submit">Upload</button>
-        </form>
-        <div id="upload-status"></div>
+        <section class="launchpad">
+            <h2>What do you want to do?</h2>
+            <div class="launch-grid">
+                <a class="launch-card" href="detentions.html">
+                    <span class="launch-kicker">Daily Roll</span>
+                    <strong>Mark Detention Roll</strong>
+                    <span>Take attendance for detention and process students in bulk.</span>
+                </a>
+                <a class="launch-card" href="#upload-section">
+                    <span class="launch-kicker">Attendance Import</span>
+                    <strong>Upload Attendance Data</strong>
+                    <span>Import the daily Sentral absence export into the system.</span>
+                </a>
+                <a class="launch-card" href="reports.html">
+                    <span class="launch-kicker">Exports</span>
+                    <strong>Create a Report</strong>
+                    <span>Build PDF or Excel reports from the stored data.</span>
+                </a>
+                <a class="launch-card" href="escalated.html">
+                    <span class="launch-kicker">Intervention</span>
+                    <strong>Escalate a Student</strong>
+                    <span>Find a student and flag them for escalation follow-up.</span>
+                </a>
+                <a class="launch-card" href="admin.html">
+                    <span class="launch-kicker">Restricted</span>
+                    <strong>Admin</strong>
+                    <span>Protected backend-controlled actions for approved users only.</span>
+                </a>
+            </div>
+        </section>
+
+        <section id="upload-section">
+            <h2>Upload Attendance Data</h2>
+            <section class="upload-guide">
+                <p><strong>Daily workflow:</strong> At COB each day, HT Admin (Student) exports the absence report for the day as an Excel file from Sentral.</p>
+                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export</p>
+                <p><strong>How this upload is processed:</strong> the parser checks the <code>Description</code> column and processes any row containing <code>absent</code> or <code>unjustified</code>. It then reads the <code>Time</code> column, splits on <code>-</code>, takes the right-hand side as the arrival time, and compares that time to <code>08:35</code>.</p>
+            </section>
+            <form id="upload-form">
+                <input type="file" id="xls-file" accept=".xls,.xlsx" required />
+                <button type="submit">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </section>
 
         <hr />
-
-
 
         <h2>Current Late Arrivals</h2>
         <table id="truancy-table">
@@ -52,8 +85,6 @@
                     <th>Last (Minutes)</th>
                     <th>Total Late</th>
                     <th>Resolved?</th>
-
-
                 </tr>
             </thead>
             <tbody id="truancy-body">

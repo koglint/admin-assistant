@@ -22,20 +22,38 @@
         <a href="escalated.html">Escalated Students</a>
         <a href="admin.html">Admin</a>
     </nav>
-      
-
-
 
     <div id="content" style="display:none;">
-        <button id="select-all-btn">Select All</button>
-        <button id="unselect-all-btn">Unselect All</button>
-        <button id="mark-present-btn">Mark Selected as Present</button>
-        <button id="toggle-resolved-btn">Hide Served</button>
-        <button id="toggle-escalated-btn">Show Escalated</button>
+        <section class="control-panel">
+            <div class="panel-block">
+                <label for="detention-search"><strong>Search Students</strong></label>
+                <input type="text" id="detention-search" placeholder="Search by first name, surname, or roll class" />
+            </div>
+            <div class="panel-block">
+                <label for="sort-select"><strong>Sort Order</strong></label>
+                <select id="sort-select">
+                    <option value="surname">Last Name</option>
+                    <option value="givenName">First Name</option>
+                    <option value="rollClass">Roll Class</option>
+                    <option value="latestDate">Last Late</option>
+                </select>
+            </div>
+            <div class="panel-block">
+                <strong>Current View</strong>
+                <p id="table-stats" class="muted-text"></p>
+            </div>
+        </section>
 
+        <section class="action-toolbar">
+            <button id="select-all-btn">Select Visible</button>
+            <button id="unselect-all-btn">Clear Selection</button>
+            <button id="mark-present-btn">Mark Selected Present</button>
+            <button id="mark-absent-btn" class="secondary-btn">Mark Selected Absent</button>
+            <button id="toggle-resolved-btn">Hide Served</button>
+            <button id="toggle-escalated-btn">Show Escalated</button>
+        </section>
 
-
-        <h2>Detention Summary</h2>
+        <h2>Detention Roll</h2>
 
         <table id="detention-table">
             <thead>

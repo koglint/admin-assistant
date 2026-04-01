@@ -1,4 +1,3 @@
-/* ======= Visibility Utility Classes ======= */
 .hidden {
   display: none !important;
 }
@@ -11,22 +10,24 @@
   display: inline-block !important;
 }
 
-/* ======= Reset Defaults ======= */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f9f9f9;
+  background: linear-gradient(180deg, #f6f8fb 0%, #eef3f8 100%);
   color: #333;
   padding: 40px;
   line-height: 1.6;
 }
 
-/* ======= Headings ======= */
 h1 {
   font-size: 32px;
   color: #2c3e50;
@@ -38,7 +39,6 @@ h2 {
   color: #34495e;
 }
 
-/* ======= Auth Section ======= */
 #auth-section {
   display: flex;
   justify-content: flex-end;
@@ -53,7 +53,12 @@ h2 {
   font-style: italic;
 }
 
-/* ======= Buttons ======= */
+button,
+select,
+input {
+  font: inherit;
+}
+
 button {
   padding: 8px 16px;
   font-size: 14px;
@@ -62,7 +67,7 @@ button {
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, transform 0.2s ease;
 }
 
 button:hover {
@@ -78,9 +83,21 @@ button:active {
   transform: scale(0.98);
 }
 
-/* ======= Upload Section ======= */
+input[type="text"],
+input[type="password"],
+select {
+  border: 1px solid #c6d2df;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: white;
+}
+
 #upload-form {
   margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 #upload-status {
@@ -89,7 +106,73 @@ button:active {
   color: #27ae60;
 }
 
-/* ======= Table Styling ======= */
+.launchpad {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 30px rgba(38, 62, 86, 0.08);
+  margin-bottom: 28px;
+}
+
+.launch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.launch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f6fb 100%);
+  border: 1px solid #d7e2ed;
+  box-shadow: 0 4px 10px rgba(41, 128, 185, 0.08);
+  text-decoration: none;
+  color: #1f2d3d;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.launch-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(41, 128, 185, 0.12);
+  border-color: #9fc0da;
+}
+
+.launch-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #5b7288;
+}
+
+.upload-guide,
+.control-panel,
+.action-toolbar {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(31, 45, 61, 0.08);
+}
+
+.upload-guide {
+  border-left: 5px solid #2980b9;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.upload-guide p + p {
+  margin-top: 10px;
+}
+
+.upload-guide code {
+  background: #eef3f8;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -120,7 +203,6 @@ td:nth-child(7) {
   text-align: center;
 }
 
-/* ======= Navbar ======= */
 .navbar {
   background-color: #333;
   overflow: hidden;
@@ -146,7 +228,6 @@ td:nth-child(7) {
   background-color: #4CAF50;
 }
 
-/* ======= Toggle Button Groups ======= */
 .toggle-group {
   margin: 20px 0;
   display: flex;
@@ -165,7 +246,7 @@ td:nth-child(7) {
   padding: 8px 16px;
   border: 1px solid #999;
   background: #f1f1f1;
-  color:#333;
+  color: #333;
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.3s, transform 0.2s;
@@ -185,7 +266,6 @@ td:nth-child(7) {
   border-color: #2980b9;
 }
 
-/* ======= Generate Button ======= */
 #generate-report {
   margin-top: 30px;
   padding: 12px 20px;
@@ -202,18 +282,63 @@ td:nth-child(7) {
   background: #27ae60;
 }
 
-#toggle-resolved-btn, #toggle-escalated-btn {
-  margin-bottom: 10px;
+#toggle-resolved-btn,
+#toggle-escalated-btn {
   background-color: #d35400;
 }
 
-#toggle-resolved-btn:hover {
+#toggle-resolved-btn:hover,
+#toggle-escalated-btn:hover {
   background-color: #e67e22;
+}
+
+.control-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.panel-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.muted-text {
+  color: #5f6f82;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status-ok {
+  background: #e8f6ee;
+  color: #1e8449;
+}
+
+.status-pending {
+  background: #fff3e8;
+  color: #b65c00;
 }
 
 .escalated-row {
   background-color: #ffe6e6;
-  /* light red/pink */
   border-left: 4px solid #cc0000;
   font-style: italic;
 }
@@ -237,10 +362,6 @@ td:nth-child(7) {
 
 .admin-row input {
   min-width: 260px;
-  padding: 10px 12px;
-  border: 1px solid #bfc7cf;
-  border-radius: 6px;
-  font-size: 14px;
 }
 
 .admin-note {
@@ -297,14 +418,6 @@ td:nth-child(7) {
   color: #1e8449;
 }
 
-
-
-
-
-
-
-
-/* ======= Responsive Styling ======= */
 @media (max-width: 768px) {
   body {
     padding: 20px;
@@ -346,19 +459,19 @@ td:nth-child(7) {
     text-align: center;
   }
 
-  .toggle-group div {
+  .toggle-group div,
+  .action-toolbar,
+  .admin-row {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
 
-  .admin-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .admin-row input {
+  .admin-row input,
+  .panel-block input,
+  .panel-block select {
     min-width: 100%;
+    width: 100%;
   }
 
   .navbar a {
@@ -373,9 +486,15 @@ td:nth-child(7) {
   }
 
   #upload-form {
-    display: flex;
     flex-direction: column;
     gap: 10px;
+    align-items: stretch;
+  }
+
+  .upload-guide,
+  .launchpad,
+  .control-panel {
+    padding: 14px;
   }
 
   #xls-file {
