@@ -79,6 +79,7 @@ async function loadTruancies() {
       studentId,
       givenName: student.givenName,
       surname: student.surname,
+      yearGroup: resolveYearGroup(student),
       truancyCount: unresolved.length,
       rollClass: student.rollClass,
       latestDate: latest?.date ?? '-',
@@ -103,6 +104,7 @@ function renderTable(data) {
       <td><button class="toggle-details" data-index="${index}">&#9654;</button></td>
       <td>${student.givenName}</td>
       <td>${student.surname}</td>
+      <td>${student.yearGroup || '-'}</td>
       <td>${student.truancyCount}</td>
       <td>${student.rollClass}</td>
       <td>${student.latestDate}</td>
@@ -116,7 +118,7 @@ function renderTable(data) {
     const detailsRow = document.createElement("tr");
     detailsRow.classList.add("hidden", "details-row");
     detailsRow.innerHTML = `
-      <td colspan="10">
+      <td colspan="11">
         <table class="inner-table">
           <thead>
             <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Description</th><th>Comment</th></tr>
@@ -158,6 +160,7 @@ tableHeaders.forEach((header, idx) => {
       null,
       "givenName",
       "surname",
+      "yearGroup",
       "truancyCount",
       "rollClass",
       "latestDate",
@@ -234,6 +237,35 @@ if (form && fileInput && statusDiv) {
       statusDiv.textContent = "Error uploading file.";
     }
   });
+}
+
+function getYearGroup(rollClass) {
+  const match = String(rollClass).match(/\d+/);
+  return match ? match[0] : '';
+}
+
+function resolveYearGroup(student) {
+  const explicitYear = normalizeYearGroupValue(student.yearGroup);
+  if (explicitYear) return explicitYear;
+
+  const truancyYear = Array.isArray(student.truancies)
+    ? student.truancies.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+    : '';
+  if (truancyYear) return truancyYear;
+
+  return getYearGroup(student.rollClass || '');
+}
+
+function normalizeYearGroupValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  if (text.endsWith('.0')) {
+    return text.slice(0, -2);
+  }
+
+  const digits = text.match(/\d+/);
+  return digits ? digits[0] : text;
 }
 
 function buildUploadStatus(data) {

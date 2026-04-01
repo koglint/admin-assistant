@@ -22,6 +22,9 @@ const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const exportFormat = document.getElementById("export-format");
 const generateSummaryBtn = document.getElementById("generate-summary-report");
+const generateMissedDetentionsBtn = document.getElementById("generate-missed-detentions-report");
+const generateLateCountBtn = document.getElementById("generate-late-count-report");
+const generateCombinedEscalationBtn = document.getElementById("generate-combined-escalation-report");
 const generateHistoryBtn = document.getElementById("generate-history-report");
 const historyScope = document.getElementById("history-scope");
 const studentSearch = document.getElementById("student-search");
@@ -89,6 +92,18 @@ generateSummaryBtn.addEventListener("click", () => {
   exportSummaryReport();
 });
 
+generateMissedDetentionsBtn.addEventListener("click", () => {
+  exportEscalationSubsetReport("missed_detention_twice");
+});
+
+generateLateCountBtn.addEventListener("click", () => {
+  exportEscalationSubsetReport("late_count_over_five");
+});
+
+generateCombinedEscalationBtn.addEventListener("click", () => {
+  exportEscalationSubsetReport("combined");
+});
+
 generateHistoryBtn.addEventListener("click", () => {
   exportHistoryReport();
 });
@@ -107,6 +122,7 @@ async function loadStudents() {
       detentionsServed: data.detentionsServed || 0,
       escalated: !!data.escalated,
       escalationReasons: data.escalationReasons || [],
+      detentionHistory: data.detentionHistory || [],
       lateArrivals: data.lateArrivals || data.truancies || [],
       activeDetention: data.activeDetention || null
     };
@@ -230,6 +246,40 @@ function exportHistoryReport() {
   XLSX.writeFile(workbook, `student_history_${date}.xlsx`);
 }
 
+function exportEscalationSubsetReport(reportType) {
+  const date = getFormattedDate();
+  const rows = allStudents
+    .filter(student => matchesEscalationReport(student, reportType))
+    .map(student => ({
+      surname: student.surname,
+      givenName: student.givenName,
+      yearGroup: student.yearGroup || '',
+      rollClass: student.rollClass,
+      lateCount: student.lateCount,
+      missedDetentionsWhilePresent: getMissedWhilePresentCount(student),
+      activeDetention: student.activeDetention?.scheduledForDate || '',
+      escalationReasons: formatReasons(student.escalationReasons)
+    }))
+    .sort((a, b) => a.surname.localeCompare(b.surname) || a.givenName.localeCompare(b.givenName));
+
+  if (rows.length === 0) {
+    alert("No students matched that report.");
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Escalation Report");
+
+  const filename = reportType === "missed_detention_twice"
+    ? `missed_two_detentions_${date}.xlsx`
+    : reportType === "late_count_over_five"
+      ? `late_more_than_five_${date}.xlsx`
+      : `combined_escalation_${date}.xlsx`;
+
+  XLSX.writeFile(workbook, filename);
+}
+
 function resolveHistorySelection() {
   const scope = historyScope.value;
   const rollClass = rollClassSelect.value;
@@ -249,6 +299,23 @@ function resolveHistorySelection() {
 function getFormattedDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getMissedWhilePresentCount(student) {
+  const historyCount = Array.isArray(student.detentionHistory)
+    ? student.detentionHistory.filter(entry => entry.outcome === "missed_while_present").length
+    : 0;
+
+  return Math.max(historyCount, student.activeDetention?.missedWhilePresentCount || 0);
+}
+
+function matchesEscalationReport(student, reportType) {
+  const missedTwice = getMissedWhilePresentCount(student) >= 2 || student.escalationReasons.includes("missed_detention_twice");
+  const lateOverFive = student.lateCount > 5 || student.escalationReasons.includes("late_count_over_five");
+
+  if (reportType === "missed_detention_twice") return missedTwice;
+  if (reportType === "late_count_over_five") return lateOverFive;
+  return missedTwice || lateOverFive;
 }
 
 function getYearGroup(rollClass) {

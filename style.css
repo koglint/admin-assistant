@@ -400,6 +400,12 @@ td:nth-child(7) {
   font-weight: 600;
 }
 
+.select-student {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
 .admin-card {
   background: white;
   border: 1px solid #e1e4e8;
