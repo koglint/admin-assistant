@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Late Data</title>
+    <title>View Late Data</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="main.js"></script>
 </head>
 
 <body>
-    <h1>Late Data</h1>
+    <h1>View Late Data</h1>
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
         <button id="logout-btn" style="display:none;">Sign Out</button>
@@ -26,28 +26,32 @@
     </nav>
 
     <div id="content" style="display:none;">
-        <h2>Current Late Arrivals</h2>
-        <p class="muted-text">This page is the live view of students currently recorded as owing follow-up for late arrival data already uploaded into the system.</p>
-        <table id="truancy-table">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th>Given Name</th>
-                    <th>Surname</th>
-                    <th>Year</th>
-                    <th>Late Count</th>
-                    <th>Roll Class</th>
-                    <th>Last Late</th>
-                    <th>Last (Arrival)</th>
-                    <th>Last (Minutes)</th>
-                    <th>Total Late</th>
-                    <th>Resolved?</th>
-                </tr>
-            </thead>
-            <tbody id="truancy-body">
-                <!-- Filled dynamically -->
-            </tbody>
-        </table>
+        <section class="page-intro">
+            <h2>Current Late Arrivals</h2>
+            <p>This page shows students currently recorded as owing follow-up for late arrival data already uploaded into the system. The default order is Year, then Surname.</p>
+        </section>
+        <section class="table-card">
+            <table id="truancy-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Given Name</th>
+                        <th>Surname</th>
+                        <th>Year</th>
+                        <th>Late Count</th>
+                        <th>Roll Class</th>
+                        <th>Last Late</th>
+                        <th>Last (Arrival)</th>
+                        <th>Last (Minutes)</th>
+                        <th>Total Late</th>
+                        <th>Resolved?</th>
+                    </tr>
+                </thead>
+                <tbody id="truancy-body">
+                    <!-- Filled dynamically -->
+                </tbody>
+            </table>
+        </section>
     </div>
 </body>
 

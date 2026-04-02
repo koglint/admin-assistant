@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Escalated Students</title>
+    <title>Escalate a Student</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="escalated.js" defer></script>
 </head>
 
 <body style="display: none;">
-    <h1>Escalated Students</h1>
+    <h1>Escalate a Student</h1>
 
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
@@ -27,6 +27,11 @@
         <a href="admin.html">Admin</a>
     </nav>
 
+    <section class="page-intro">
+        <h2>Escalation Review</h2>
+        <p>Use this page to find students who need follow-up, manually escalate when needed, and manage the current escalated list.</p>
+    </section>
+
     <section class="control-panel">
         <div class="panel-block">
             <h2>Manually Escalate Student</h2>
@@ -35,22 +40,24 @@
         </div>
     </section>
 
-    <h2>Currently Escalated</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Roll Class</th>
-                <th>Late Count</th>
-                <th>Reasons</th>
-                <th>Detention Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="escalated-body">
-            <!-- Filled by JS -->
-        </tbody>
-    </table>
+    <section class="table-card">
+        <h2>Currently Escalated</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Roll Class</th>
+                    <th>Late Count</th>
+                    <th>Reasons</th>
+                    <th>Detention Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="escalated-body">
+                <!-- Filled by JS -->
+            </tbody>
+        </table>
+    </section>
 </body>
 
 </html>

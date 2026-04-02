@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Detention Tracker</title>
+    <title>Mark Detention Roll</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="detentions.js"></script>
 </head>
 
 <body>
-    <h1>Detention Tracking</h1>
+    <h1>Mark Detention Roll</h1>
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
         <button id="logout-btn" style="display:none;">Sign Out</button>
@@ -26,6 +26,10 @@
     </nav>
 
     <div id="content" style="display:none;">
+        <section class="page-intro">
+            <h2>Daily Detention Roll</h2>
+            <p>Use this page to search, sort, select, and mark students who served detention. The default order is Year, then Surname.</p>
+        </section>
         <section class="control-panel">
             <div class="panel-block">
                 <label for="detention-search"><strong>Search Students</strong></label>
@@ -34,10 +38,10 @@
             <div class="panel-block">
                 <strong>Sort Order</strong>
                 <div id="sort-button-group" class="sort-button-group">
-                    <button type="button" class="sort-btn active" data-sort-key="surname">Surname</button>
+                    <button type="button" class="sort-btn" data-sort-key="surname">Surname</button>
                     <button type="button" class="sort-btn" data-sort-key="givenName">First Name</button>
                     <button type="button" class="sort-btn" data-sort-key="rollClass">Roll Class</button>
-                    <button type="button" class="sort-btn" data-sort-key="yearGroup">Year Group</button>
+                    <button type="button" class="sort-btn active" data-sort-key="yearGroup">Year Group</button>
                 </div>
             </div>
             <div class="panel-block">
@@ -47,34 +51,33 @@
         </section>
 
         <section class="action-toolbar">
-            <button id="select-all-btn">Select Visible</button>
-            <button id="unselect-all-btn">Clear Selection</button>
+            <button id="select-all-btn">Select All</button>
+            <button id="unselect-all-btn">Unselect All</button>
             <button id="mark-present-btn">Mark Selected Present</button>
             <button id="toggle-resolved-btn">Hide Served</button>
             <button id="toggle-escalated-btn">Show Escalated</button>
         </section>
-
-        <h2>Detention Roll</h2>
-
-        <table id="detention-table">
-            <thead>
-                <tr>
-                    <th>Select</th>
-                    <th>Given Name</th>
-                    <th>Surname</th>
-                    <th>Year</th>
-                    <th>Roll Class</th>
-                    <th>Last Late</th>
-                    <th>Late Count</th>
-                    <th>Detentions Served</th>
-                    <th>Resolved</th>
-                    <th>Undo</th>
-                </tr>
-            </thead>
-            <tbody id="detention-body">
-                <!-- Filled dynamically -->
-            </tbody>
-        </table>
+        <section class="table-card">
+            <table id="detention-table">
+                <thead>
+                    <tr>
+                        <th>Select</th>
+                        <th>Given Name</th>
+                        <th>Surname</th>
+                        <th>Year</th>
+                        <th>Roll Class</th>
+                        <th>Last Late</th>
+                        <th>Late Count</th>
+                        <th>Detentions Served</th>
+                        <th>Resolved</th>
+                        <th>Undo</th>
+                    </tr>
+                </thead>
+                <tbody id="detention-body">
+                    <!-- Filled dynamically -->
+                </tbody>
+            </table>
+        </section>
     </div>
 </body>
 

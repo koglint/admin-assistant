@@ -10,8 +10,9 @@ import {
 import {
   collection,
   getDocs,
-  updateDoc,
-  doc
+  doc,
+  runTransaction,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const loginBtn = document.getElementById('login-btn');
@@ -20,6 +21,7 @@ const userInfo = document.getElementById('user-info');
 const searchInput = document.getElementById('search-input');
 
 let allStudents = [];
+let currentUserDescriptor = "unknown_user";
 
 loginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
@@ -37,12 +39,14 @@ logoutBtn.onclick = () => {
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    currentUserDescriptor = buildUserDescriptor(user);
     userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
     document.body.style.display = "block";
     await refreshPage();
   } else {
+    currentUserDescriptor = "unknown_user";
     userInfo.textContent = "";
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
@@ -59,10 +63,24 @@ document.addEventListener('click', async (e) => {
     const student = allStudents.find(item => item.id === e.target.dataset.id);
     if (!student) return;
 
-    await updateDoc(doc(db, 'students', student.id), {
-      escalated: true,
-      manualEscalation: true,
-      escalationReasons: ['manual_escalation']
+    await runTransaction(db, async (transaction) => {
+      const ref = doc(db, 'students', student.id);
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+      transaction.update(ref, {
+        escalated: true,
+        manualEscalation: true,
+        escalationReasons: ['manual_escalation'],
+        escalationSuppression: data.escalationSuppression || {
+          lateCountUntil: 0,
+          missedCountUntil: 0
+        },
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUserDescriptor,
+        lastAction: "manual_escalation_added"
+      });
     });
     await refreshPage();
   }
@@ -71,14 +89,24 @@ document.addEventListener('click', async (e) => {
     const student = allStudents.find(item => item.id === e.target.dataset.id);
     if (!student) return;
 
-    await updateDoc(doc(db, 'students', student.id), {
-      escalated: false,
-      manualEscalation: false,
-      escalationReasons: [],
-      escalationSuppression: {
-        lateCountUntil: student.lateCount,
-        missedCountUntil: student.activeDetention?.missedWhilePresentCount || 0
-      }
+    await runTransaction(db, async (transaction) => {
+      const ref = doc(db, 'students', student.id);
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+      transaction.update(ref, {
+        escalated: false,
+        manualEscalation: false,
+        escalationReasons: [],
+        escalationSuppression: {
+          lateCountUntil: data.lateCount || data.truancyCount || 0,
+          missedCountUntil: data.activeDetention?.missedWhilePresentCount || 0
+        },
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUserDescriptor,
+        lastAction: "manual_escalation_return_to_roll"
+      });
     });
     await refreshPage();
   }
@@ -87,23 +115,33 @@ document.addEventListener('click', async (e) => {
     const student = allStudents.find(item => item.id === e.target.dataset.id);
     if (!student) return;
 
-    const history = Array.isArray(student.detentionHistory) ? [...student.detentionHistory] : [];
-    history.push({
-      date: new Date().toISOString().split("T")[0],
-      outcome: "cleared_after_escalation"
-    });
+    await runTransaction(db, async (transaction) => {
+      const ref = doc(db, 'students', student.id);
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) return;
 
-    await updateDoc(doc(db, 'students', student.id), {
-      escalated: false,
-      manualEscalation: false,
-      escalationReasons: [],
-      activeDetention: null,
-      truancyResolved: true,
-      escalationSuppression: {
-        lateCountUntil: student.lateCount,
-        missedCountUntil: student.activeDetention?.missedWhilePresentCount || 0
-      },
-      detentionHistory: history
+      const data = snap.data();
+      const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
+      history.push({
+        date: new Date().toISOString().split("T")[0],
+        outcome: "cleared_after_escalation"
+      });
+
+      transaction.update(ref, {
+        escalated: false,
+        manualEscalation: false,
+        escalationReasons: [],
+        activeDetention: null,
+        truancyResolved: true,
+        escalationSuppression: {
+          lateCountUntil: data.lateCount || data.truancyCount || 0,
+          missedCountUntil: data.activeDetention?.missedWhilePresentCount || 0
+        },
+        detentionHistory: history,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUserDescriptor,
+        lastAction: "manual_escalation_cleared"
+      });
     });
     await refreshPage();
   }
@@ -199,4 +237,9 @@ function formatDetentionStatus(activeDetention) {
   }
 
   return `Owed for ${activeDetention.scheduledForDate}`;
+}
+
+function buildUserDescriptor(user) {
+  if (!user) return "unknown_user";
+  return user.email || user.displayName || user.uid || "unknown_user";
 }

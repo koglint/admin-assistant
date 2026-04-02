@@ -92,7 +92,9 @@ async function loadTruancies() {
     });
   });
 
-  renderTable(studentDataCache);
+  currentSortKey = "yearGroup";
+  sortAsc = true;
+  renderTable(sortStudentData(studentDataCache));
 }
 
 function renderTable(data) {
@@ -180,22 +182,7 @@ tableHeaders.forEach((header, idx) => {
     }
 
     const sorted = [...studentDataCache].sort((a, b) => {
-      const valA = a[key];
-      const valB = b[key];
-
-      let primary;
-      if (typeof valA === 'boolean' && typeof valB === 'boolean') {
-        primary = sortAsc ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
-      } else if (typeof valA === 'number' && typeof valB === 'number') {
-        primary = sortAsc ? valA - valB : valB - valA;
-      } else {
-        primary = sortAsc
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      }
-
-      if (primary !== 0 || key === 'surname') return primary;
-      return String(a.surname).localeCompare(String(b.surname));
+      return compareStudents(a, b, key, sortAsc);
     });
 
     renderTable(sorted);
@@ -266,6 +253,38 @@ function normalizeYearGroupValue(value) {
 
   const digits = text.match(/\d+/);
   return digits ? digits[0] : text;
+}
+
+function sortStudentData(data) {
+  return [...data].sort((a, b) => compareStudents(a, b, currentSortKey, sortAsc));
+}
+
+function compareStudents(a, b, key, ascending) {
+  const valA = a[key];
+  const valB = b[key];
+
+  if (key === 'yearGroup') {
+    const numericA = Number.parseInt(valA, 10);
+    const numericB = Number.parseInt(valB, 10);
+    const bothNumeric = !Number.isNaN(numericA) && !Number.isNaN(numericB);
+    if (bothNumeric && numericA !== numericB) {
+      return ascending ? numericA - numericB : numericB - numericA;
+    }
+  }
+
+  let primary;
+  if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+    primary = ascending ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+  } else if (typeof valA === 'number' && typeof valB === 'number') {
+    primary = ascending ? valA - valB : valB - valA;
+  } else {
+    primary = ascending
+      ? String(valA).localeCompare(String(valB))
+      : String(valB).localeCompare(String(valA));
+  }
+
+  if (primary !== 0 || key === 'surname') return primary;
+  return String(a.surname).localeCompare(String(b.surname));
 }
 
 function buildUploadStatus(data) {

@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Admin Controls</title>
+    <title>Admin</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="admin.js"></script>
 </head>
 
 <body>
-    <h1>Admin Controls</h1>
+    <h1>Admin</h1>
 
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
@@ -28,6 +28,10 @@
     </nav>
 
     <div id="content" style="display:none;">
+        <section class="page-intro">
+            <h2>Restricted Tools</h2>
+            <p>Use this area only for protected maintenance actions. Access stays locked behind the approved account and backend password checks.</p>
+        </section>
         <section class="admin-card">
             <h2>Admin Password</h2>
             <p class="admin-note">Sign in with an approved email, then enter the backend admin password to unlock protected actions on this page.</p>

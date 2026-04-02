@@ -10,10 +10,10 @@ import {
 import {
   collection,
   getDocs,
-  getDoc,
   doc,
-  updateDoc,
-  deleteField
+  deleteField,
+  runTransaction,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const loginBtn = document.getElementById('login-btn');
@@ -33,10 +33,11 @@ const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
 
 let showEscalated = false;
 let hideResolved = false;
-let sortKey = "surname";
+let sortKey = "yearGroup";
 let detentionDataCache = [];
 let filteredDetentionData = [];
 const selectedStudentIds = new Set();
+let currentUserDescriptor = "unknown_user";
 
 loginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
@@ -54,12 +55,15 @@ logoutBtn.onclick = () => {
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    currentUserDescriptor = buildUserDescriptor(user);
     userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
     content.style.display = "block";
     await loadDetentionSummary();
+    updateSortButtons();
   } else {
+    currentUserDescriptor = "unknown_user";
     userInfo.textContent = "";
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
@@ -116,33 +120,10 @@ markPresentBtn.addEventListener("click", async () => {
   const confirmed = confirm(`Mark ${selectedIds.length} student(s) as present for detention?`);
   if (!confirmed) return;
 
-  await updateSelectedStudents(selectedIds, async (ref, data) => {
-    const activeDetention = data.activeDetention;
-    if (!activeDetention || activeDetention.status !== "open") {
-      return;
-    }
-
-    const currentCount = data.detentionsServed || 0;
-    const today = new Date().toISOString().split("T")[0];
-    const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
-    history.push({
-      date: today,
-      scheduledForDate: activeDetention.scheduledForDate,
-      outcome: "served"
-    });
-
-    await updateDoc(ref, {
-      detentionsServed: currentCount + 1,
-      lastDetentionServedDate: today,
-      truancyResolved: true,
-      activeDetention: null,
-      detentionHistory: history
-    });
-  });
-
+  const updatedCount = await markSelectedPresent(selectedIds);
   clearSelectedStudents();
-  renderDetentionTable(filteredDetentionData);
-  alert("Selected students marked present.");
+  await loadDetentionSummary();
+  alert(updatedCount > 0 ? `${updatedCount} student(s) marked present.` : "No student records needed updating.");
 });
 
 tableBody.addEventListener("change", (e) => {
@@ -166,40 +147,8 @@ tableBody.addEventListener("click", async (e) => {
     if (!confirmUndo) return;
 
     try {
-      const ref = doc(db, "students", studentId);
-      const snap = await getDoc(ref);
-      const student = snap.data();
-      const currentCount = student.detentionsServed || 0;
-
-      if (currentCount > 0) {
-        const history = Array.isArray(student.detentionHistory) ? [...student.detentionHistory] : [];
-        const lastServedIndex = [...history].reverse().findIndex(entry => entry.outcome === "served");
-        let reopenedDetention = student.activeDetention || null;
-
-        if (lastServedIndex !== -1) {
-          const actualIndex = history.length - 1 - lastServedIndex;
-          const servedEntry = history.splice(actualIndex, 1)[0];
-          reopenedDetention = {
-            status: "open",
-            createdFromLateDate: servedEntry.date,
-            scheduledForDate: new Date().toISOString().split("T")[0],
-            sourceContext: "manual_reopen",
-            createdAt: new Date().toISOString(),
-            lastRollMark: null,
-            lastRollMarkedAt: null,
-            pendingAttendanceCheckDate: null,
-            missedWhilePresentCount: 0
-          };
-        }
-
-        await updateDoc(ref, {
-          detentionsServed: currentCount - 1,
-          truancyResolved: false,
-          lastDetentionServedDate: deleteField(),
-          activeDetention: reopenedDetention,
-          detentionHistory: history
-        });
-
+      const updated = await undoServedDetention(studentId);
+      if (updated) {
         selectedStudentIds.delete(studentId);
         persistSelectedStudents();
         await loadDetentionSummary();
@@ -222,19 +171,7 @@ tableBody.addEventListener("click", async (e) => {
     if (!confirmed) return;
 
     try {
-      const ref = doc(db, "students", studentId);
-      const updates = {
-        truancyResolved: newValue
-      };
-
-      if (!newValue) {
-        updates.lastDetentionServedDate = deleteField();
-        updates.activeDetention = studentToManualDetention(studentId);
-      } else {
-        updates.activeDetention = null;
-      }
-
-      await updateDoc(ref, updates);
+      await toggleResolvedState(studentId, newValue);
       await loadDetentionSummary();
       alert(`Truancy resolved set to ${newValue}`);
     } catch (err) {
@@ -432,22 +369,19 @@ function normalizeYearGroupValue(value) {
 }
 
 async function updateSelectedStudents(selectedIds, updater) {
+  let updatedCount = 0;
   for (const studentId of selectedIds) {
     try {
-      const ref = doc(db, "students", studentId);
-      const snap = await getDoc(ref);
-      const data = snap.data();
-      if (data?.escalated) {
-        continue;
+      const updated = await updater(studentId);
+      if (updated) {
+        updatedCount += 1;
       }
-      await updater(ref, data, data);
     } catch (err) {
       console.error(`Failed to update ${studentId}`, err);
     }
   }
 
-  persistSelectedStudents();
-  await loadDetentionSummary();
+  return updatedCount;
 }
 
 function studentToManualDetention() {
@@ -463,4 +397,119 @@ function studentToManualDetention() {
     pendingAttendanceCheckDate: null,
     missedWhilePresentCount: 0
   };
+}
+
+async function markSelectedPresent(selectedIds) {
+  return updateSelectedStudents(selectedIds, async (studentId) => {
+    const ref = doc(db, "students", studentId);
+    return runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) return false;
+
+      const data = snap.data();
+      if (data?.escalated) return false;
+
+      const activeDetention = data.activeDetention;
+      if (!activeDetention || activeDetention.status !== "open") {
+        return false;
+      }
+
+      const currentCount = data.detentionsServed || 0;
+      const today = new Date().toISOString().split("T")[0];
+      const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
+      history.push({
+        date: today,
+        scheduledForDate: activeDetention.scheduledForDate,
+        outcome: "served"
+      });
+
+      transaction.update(ref, {
+        detentionsServed: currentCount + 1,
+        lastDetentionServedDate: today,
+        truancyResolved: true,
+        activeDetention: null,
+        detentionHistory: history,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUserDescriptor,
+        lastAction: "detention_marked_present"
+      });
+      return true;
+    });
+  });
+}
+
+async function undoServedDetention(studentId) {
+  const ref = doc(db, "students", studentId);
+  return runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return false;
+
+    const student = snap.data();
+    const currentCount = student.detentionsServed || 0;
+    if (currentCount <= 0) return false;
+
+    const history = Array.isArray(student.detentionHistory) ? [...student.detentionHistory] : [];
+    const lastServedIndex = [...history].reverse().findIndex(entry => entry.outcome === "served");
+    let reopenedDetention = student.activeDetention || null;
+
+    if (lastServedIndex !== -1) {
+      const actualIndex = history.length - 1 - lastServedIndex;
+      const servedEntry = history.splice(actualIndex, 1)[0];
+      reopenedDetention = {
+        status: "open",
+        createdFromLateDate: servedEntry.date,
+        scheduledForDate: new Date().toISOString().split("T")[0],
+        sourceContext: "manual_reopen",
+        createdAt: new Date().toISOString(),
+        lastRollMark: null,
+        lastRollMarkedAt: null,
+        pendingAttendanceCheckDate: null,
+        missedWhilePresentCount: 0
+      };
+    }
+
+    transaction.update(ref, {
+      detentionsServed: currentCount - 1,
+      truancyResolved: false,
+      lastDetentionServedDate: deleteField(),
+      activeDetention: reopenedDetention,
+      detentionHistory: history,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUserDescriptor,
+      lastAction: "detention_undo"
+    });
+    return true;
+  });
+}
+
+async function toggleResolvedState(studentId, newValue) {
+  const ref = doc(db, "students", studentId);
+  return runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return false;
+
+    const updates = {
+      truancyResolved: newValue
+    };
+
+    if (!newValue) {
+      updates.lastDetentionServedDate = deleteField();
+      updates.activeDetention = studentToManualDetention(studentId);
+      updates.lastAction = "detention_reopened_manually";
+    } else {
+      updates.activeDetention = null;
+      updates.lastAction = "detention_resolved_manually";
+    }
+
+    updates.updatedAt = serverTimestamp();
+    updates.updatedBy = currentUserDescriptor;
+
+    transaction.update(ref, updates);
+    return true;
+  });
+}
+
+function buildUserDescriptor(user) {
+  if (!user) return "unknown_user";
+  return user.email || user.displayName || user.uid || "unknown_user";
 }
