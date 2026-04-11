@@ -384,8 +384,6 @@ td:nth-child(7) {
 
 .action-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
   gap: 14px;
   padding: 16px;
@@ -396,10 +394,6 @@ td:nth-child(7) {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.action-toolbar-group-primary {
-  margin-left: auto;
 }
 
 .mark-present-btn {
@@ -633,8 +627,7 @@ td:nth-child(7) {
     padding: 14px;
   }
 
-  .action-toolbar-group,
-  .action-toolbar-group-primary {
+  .action-toolbar-group {
     width: 100%;
     margin-left: 0;
   }

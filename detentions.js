@@ -40,6 +40,7 @@ let detentionDataCache = [];
 let filteredDetentionData = [];
 const selectedStudentIds = new Set();
 const selectedYearFilters = new Set(YEAR_FILTER_OPTIONS);
+let yearFilterIsCustom = false;
 let currentUserDescriptor = "unknown_user";
 
 loginBtn.onclick = async () => {
@@ -104,10 +105,19 @@ yearFilterButtons.forEach(button => {
     const yearValue = button.dataset.yearFilter;
     if (!yearValue) return;
 
-    if (selectedYearFilters.has(yearValue)) {
+    if (!yearFilterIsCustom) {
+      selectedYearFilters.clear();
+      selectedYearFilters.add(yearValue);
+      yearFilterIsCustom = true;
+    } else if (selectedYearFilters.has(yearValue)) {
       selectedYearFilters.delete(yearValue);
     } else {
       selectedYearFilters.add(yearValue);
+    }
+
+    if (selectedYearFilters.size === 0) {
+      YEAR_FILTER_OPTIONS.forEach(option => selectedYearFilters.add(option));
+      yearFilterIsCustom = false;
     }
 
     updateYearFilterButtons();
@@ -334,7 +344,7 @@ function updateSortButtons() {
 function updateYearFilterButtons() {
   yearFilterButtons.forEach(button => {
     const yearValue = button.dataset.yearFilter || "";
-    button.classList.toggle("active", selectedYearFilters.has(yearValue));
+    button.classList.toggle("active", !yearFilterIsCustom || selectedYearFilters.has(yearValue));
   });
 }
 
