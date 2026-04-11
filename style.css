@@ -342,6 +342,12 @@ td:nth-child(7) {
   gap: 8px;
 }
 
+.year-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .sort-btn {
   background: #eaf1f7;
   color: #1f2d3d;
@@ -358,12 +364,53 @@ td:nth-child(7) {
   border-color: #2980b9;
 }
 
+.year-filter-btn {
+  min-width: 52px;
+  padding-inline: 14px;
+  background: #f3f5f7;
+  color: #384856;
+  border: 1px solid #d2dbe4;
+}
+
+.year-filter-btn:hover {
+  background: #e7edf3;
+}
+
+.year-filter-btn.active {
+  background: #1f6aa5;
+  color: white;
+  border-color: #1f6aa5;
+}
+
 .action-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.action-toolbar-group {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 16px;
-  margin-bottom: 18px;
+}
+
+.action-toolbar-group-primary {
+  margin-left: auto;
+}
+
+.mark-present-btn {
+  background: linear-gradient(135deg, #1f9d55 0%, #168647 100%);
+  padding: 12px 20px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(22, 134, 71, 0.22);
+}
+
+.mark-present-btn:hover {
+  background: linear-gradient(135deg, #23ab5e 0%, #1a9450 100%);
 }
 
 .muted-text {
@@ -584,6 +631,16 @@ td:nth-child(7) {
   .launchpad,
   .control-panel {
     padding: 14px;
+  }
+
+  .action-toolbar-group,
+  .action-toolbar-group-primary {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .action-toolbar-group button {
+    width: 100%;
   }
 
   #xls-file {

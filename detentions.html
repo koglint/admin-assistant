@@ -26,10 +26,6 @@
     </nav>
 
     <div id="content" style="display:none;">
-        <section class="page-intro">
-            <h2>Daily Detention Roll</h2>
-            <p>Use this page to search, sort, select, and mark students who served detention. The default order is Year, then Surname.</p>
-        </section>
         <section class="control-panel">
             <div class="panel-block">
                 <label for="detention-search"><strong>Search Students</strong></label>
@@ -43,6 +39,16 @@
                     <button type="button" class="sort-btn" data-sort-key="rollClass">Roll Class</button>
                     <button type="button" class="sort-btn active" data-sort-key="yearGroup">Year Group</button>
                 </div>
+                <strong>Year Filter</strong>
+                <div id="year-filter-group" class="year-filter-group">
+                    <button type="button" class="year-filter-btn active" data-year-filter="7">7</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="8">8</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="9">9</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="10">10</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="11">11</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="12">12</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="SRC">SRC</button>
+                </div>
             </div>
             <div class="panel-block">
                 <strong>Current View</strong>
@@ -51,11 +57,15 @@
         </section>
 
         <section class="action-toolbar">
-            <button id="select-all-btn">Select All</button>
-            <button id="unselect-all-btn">Unselect All</button>
-            <button id="mark-present-btn">Mark Selected Present</button>
-            <button id="toggle-resolved-btn">Hide Served</button>
-            <button id="toggle-escalated-btn">Show Escalated</button>
+            <div class="action-toolbar-group">
+                <button id="select-all-btn">Select All</button>
+                <button id="unselect-all-btn">Unselect All</button>
+                <button id="toggle-resolved-btn">Hide Served</button>
+                <button id="toggle-escalated-btn">Show Escalated</button>
+            </div>
+            <div class="action-toolbar-group action-toolbar-group-primary">
+                <button id="mark-present-btn" class="mark-present-btn">Mark Selected Present</button>
+            </div>
         </section>
         <section class="table-card">
             <table id="detention-table">

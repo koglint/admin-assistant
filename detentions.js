@@ -28,8 +28,10 @@ const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 const searchInput = document.getElementById("detention-search");
 const sortButtons = document.querySelectorAll(".sort-btn");
+const yearFilterButtons = document.querySelectorAll(".year-filter-btn");
 const tableStats = document.getElementById("table-stats");
 const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
+const YEAR_FILTER_OPTIONS = ["7", "8", "9", "10", "11", "12", "SRC"];
 
 let showEscalated = false;
 let hideResolved = false;
@@ -37,6 +39,7 @@ let sortKey = "yearGroup";
 let detentionDataCache = [];
 let filteredDetentionData = [];
 const selectedStudentIds = new Set();
+const selectedYearFilters = new Set(YEAR_FILTER_OPTIONS);
 let currentUserDescriptor = "unknown_user";
 
 loginBtn.onclick = async () => {
@@ -62,6 +65,7 @@ onAuthStateChanged(auth, async (user) => {
     content.style.display = "block";
     await loadDetentionSummary();
     updateSortButtons();
+    updateYearFilterButtons();
   } else {
     currentUserDescriptor = "unknown_user";
     userInfo.textContent = "";
@@ -91,6 +95,22 @@ sortButtons.forEach(button => {
   button.addEventListener("click", () => {
     sortKey = button.dataset.sortKey || "surname";
     updateSortButtons();
+    applyFiltersAndRender();
+  });
+});
+
+yearFilterButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    const yearValue = button.dataset.yearFilter;
+    if (!yearValue) return;
+
+    if (selectedYearFilters.has(yearValue)) {
+      selectedYearFilters.delete(yearValue);
+    } else {
+      selectedYearFilters.add(yearValue);
+    }
+
+    updateYearFilterButtons();
     applyFiltersAndRender();
   });
 });
@@ -218,6 +238,7 @@ function applyFiltersAndRender() {
     .filter(student => {
       if (!showEscalated && student.escalated) return false;
       if (hideResolved && student.truancyResolved) return false;
+      if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) return false;
 
       if (!query) return true;
 
@@ -310,6 +331,13 @@ function updateSortButtons() {
   });
 }
 
+function updateYearFilterButtons() {
+  yearFilterButtons.forEach(button => {
+    const yearValue = button.dataset.yearFilter || "";
+    button.classList.toggle("active", selectedYearFilters.has(yearValue));
+  });
+}
+
 function persistSelectedStudents() {
   localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify([...selectedStudentIds]));
 }
@@ -359,6 +387,10 @@ function resolveYearGroup(student) {
 function normalizeYearGroupValue(value) {
   const text = String(value || "").trim();
   if (!text) return "";
+
+  if (text.toUpperCase() === "SRC") {
+    return "SRC";
+  }
 
   if (text.endsWith(".0")) {
     return text.slice(0, -2);
