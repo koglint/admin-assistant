@@ -53,6 +53,7 @@ onAuthStateChanged(auth, async (user) => {
     userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
+    document.body.style.display = "block";
     content.style.display = "block";
     await refreshPage();
   } else {
@@ -60,6 +61,7 @@ onAuthStateChanged(auth, async (user) => {
     userInfo.textContent = "";
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
+    document.body.style.display = "none";
     content.style.display = "none";
   }
 });
@@ -120,10 +122,6 @@ document.addEventListener('click', async (e) => {
         escalationCause: '',
         lastEscalationReasons: Array.isArray(data.escalationReasons) ? data.escalationReasons : [],
         lastEscalationCause: data.escalationCause || formatReasons(data.escalationReasons || []),
-        escalationSuppression: {
-          lateCountUntil: data.lateCount || data.truancyCount || 0,
-          missedCountUntil: data.activeDetention?.missedWhilePresentCount || 0
-        },
         updatedAt: serverTimestamp(),
         updatedBy: currentUserDescriptor,
         lastAction: "manual_de_escalation"

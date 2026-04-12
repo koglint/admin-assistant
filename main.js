@@ -257,7 +257,7 @@ async function loadTruancies() {
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
       escalated: !!student.escalated,
-      truancies: student.truancies
+      truancies: unresolved
     });
   });
 
