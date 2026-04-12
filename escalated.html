@@ -5,10 +5,11 @@
     <meta charset="UTF-8" />
     <title>Escalate a Student</title>
     <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script type="module" src="escalated.js" defer></script>
 </head>
 
-<body style="display: none;">
+<body>
     <h1>Escalate a Student</h1>
 
     <div id="auth-section">
@@ -28,36 +29,53 @@
     </nav>
 
     <section class="page-intro">
-        <h2>Escalation Review</h2>
-        <p>Use this page to find students who need follow-up, manually escalate when needed, and manage the current escalated list.</p>
+        <h2>Escalation Management</h2>
+        <p>Use this page to view escalated students, export the current escalation list when needed, and manually escalate a student.</p>
     </section>
 
-    <section class="control-panel">
-        <div class="panel-block">
+    <div id="content" style="display:none;">
+        <section class="control-panel">
+            <div class="panel-block">
+                <strong>Current View</strong>
+                <p id="escalation-stats" class="muted-text"></p>
+            </div>
+            <div class="panel-block">
+                <label for="export-format"><strong>Export Format</strong></label>
+                <select id="export-format">
+                    <option value="pdf">PDF</option>
+                    <option value="excel">Excel</option>
+                </select>
+                <button id="export-escalated-report">Export Escalated Report</button>
+            </div>
+        </section>
+
+        <section class="table-card">
+            <h2>Currently Escalated</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Year</th>
+                        <th>Roll Class</th>
+                        <th>Late Count</th>
+                        <th>Reasons</th>
+                        <th>Detention Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="escalated-body">
+                    <!-- Filled by JS -->
+                </tbody>
+            </table>
+        </section>
+
+        <section class="admin-card">
             <h2>Manually Escalate Student</h2>
+            <p class="admin-note">Search for a student by name or roll class, then add them to the escalated list.</p>
             <input type="text" id="search-input" placeholder="Search by name or roll class" />
-            <ul id="search-results"></ul>
-        </div>
-    </section>
-
-    <section class="table-card">
-        <h2>Currently Escalated</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Roll Class</th>
-                    <th>Late Count</th>
-                    <th>Reasons</th>
-                    <th>Detention Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="escalated-body">
-                <!-- Filled by JS -->
-            </tbody>
-        </table>
-    </section>
+            <ul id="search-results" class="search-results-list"></ul>
+        </section>
+    </div>
 </body>
 
 </html>

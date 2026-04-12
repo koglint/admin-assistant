@@ -630,6 +630,25 @@ td:nth-child(7) {
   background: #fff5f5;
 }
 
+.search-results-list {
+  list-style: none;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-results-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d7e2ed;
+  border-radius: 10px;
+  background: #f9fbfd;
+}
+
 .error-text {
   color: #b00020;
 }
