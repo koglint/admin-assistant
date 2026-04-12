@@ -67,6 +67,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadDetentionSummary();
     updateSortButtons();
     updateYearFilterButtons();
+    updateToggleButtons();
   } else {
     currentUserDescriptor = "unknown_user";
     userInfo.textContent = "";
@@ -78,13 +79,13 @@ onAuthStateChanged(auth, async (user) => {
 
 toggleEscalatedBtn.addEventListener("click", () => {
   showEscalated = !showEscalated;
-  toggleEscalatedBtn.textContent = showEscalated ? "Hide Escalated" : "Show Escalated";
+  updateToggleButtons();
   applyFiltersAndRender();
 });
 
 toggleResolvedBtn.addEventListener("click", () => {
   hideResolved = !hideResolved;
-  toggleResolvedBtn.textContent = hideResolved ? "Show Served" : "Hide Served";
+  updateToggleButtons();
   applyFiltersAndRender();
 });
 
@@ -147,13 +148,13 @@ markPresentBtn.addEventListener("click", async () => {
     return;
   }
 
-  const confirmed = confirm(`Mark ${selectedIds.length} student(s) as present for detention?`);
+  const confirmed = confirm(`Mark detention as successfully completed for ${selectedIds.length} student(s)?`);
   if (!confirmed) return;
 
   const updatedCount = await markSelectedPresent(selectedIds);
   clearSelectedStudents();
   await loadDetentionSummary();
-  alert(updatedCount > 0 ? `${updatedCount} student(s) marked present.` : "No student records needed updating.");
+  alert(updatedCount > 0 ? `${updatedCount} student(s) marked as successfully completed detention.` : "No student records needed updating.");
 });
 
 tableBody.addEventListener("change", (e) => {
@@ -339,6 +340,14 @@ function updateSortButtons() {
   sortButtons.forEach(button => {
     button.classList.toggle("active", button.dataset.sortKey === sortKey);
   });
+}
+
+function updateToggleButtons() {
+  toggleResolvedBtn.classList.toggle("active", hideResolved);
+  toggleResolvedBtn.textContent = hideResolved ? "Served Hidden" : "Served Visible";
+
+  toggleEscalatedBtn.classList.toggle("active", showEscalated);
+  toggleEscalatedBtn.textContent = showEscalated ? "Escalated Shown" : "Escalated Hidden";
 }
 
 function updateYearFilterButtons() {

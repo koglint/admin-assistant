@@ -28,7 +28,42 @@
     <div id="content" style="display:none;">
         <section class="page-intro">
             <h2>Current Late Arrivals</h2>
-            <p>This page shows students currently recorded as owing follow-up for late arrival data already uploaded into the system. The default order is Year, then Surname.</p>
+            <p>This page shows late arrival records already uploaded into the system. Use the filters below to focus on selected year groups, served matters, or escalated students.</p>
+        </section>
+        <section class="control-panel">
+            <div class="panel-block">
+                <label for="truancy-search"><strong>Search Students</strong></label>
+                <input type="text" id="truancy-search" placeholder="Search by first name, surname, or roll class" />
+            </div>
+            <div class="panel-block">
+                <strong>Sort Order</strong>
+                <div id="sort-button-group" class="sort-button-group">
+                    <button type="button" class="sort-btn" data-sort-key="surname">Surname</button>
+                    <button type="button" class="sort-btn" data-sort-key="givenName">First Name</button>
+                    <button type="button" class="sort-btn" data-sort-key="rollClass">Roll Class</button>
+                    <button type="button" class="sort-btn active" data-sort-key="yearGroup">Year Group</button>
+                </div>
+                <strong>Year Filter</strong>
+                <div id="year-filter-group" class="year-filter-group">
+                    <button type="button" class="year-filter-btn active" data-year-filter="7">7</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="8">8</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="9">9</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="10">10</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="11">11</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="12">12</button>
+                    <button type="button" class="year-filter-btn active" data-year-filter="SRC">SRC</button>
+                </div>
+            </div>
+            <div class="panel-block">
+                <strong>Current View</strong>
+                <p id="table-stats" class="muted-text"></p>
+            </div>
+        </section>
+        <section class="action-toolbar">
+            <div class="action-toolbar-group">
+                <button id="toggle-resolved-btn" class="filter-toggle-btn">Served Visible</button>
+                <button id="toggle-escalated-btn" class="filter-toggle-btn">Escalated Hidden</button>
+            </div>
         </section>
         <section class="table-card">
             <table id="truancy-table">
@@ -44,6 +79,7 @@
                         <th>Last (Arrival)</th>
                         <th>Last (Minutes)</th>
                         <th>Total Late</th>
+                        <th>Detentions Served</th>
                         <th>Resolved?</th>
                     </tr>
                 </thead>
