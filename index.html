@@ -8,61 +8,27 @@
     <script type="module" src="main.js"></script>
 </head>
 
-<body>
-    <h1>Home</h1>
-    <div id="auth-section">
-        <button id="login-btn">Sign In with Google</button>
-        <button id="logout-btn" style="display:none;">Sign Out</button>
-        <p id="user-info"></p>
-    </div>
-    <nav class="navbar">
-        <a href="index.html">Home</a>
-        <a href="detentions.html">Mark Detention Roll</a>
-        <a href="upload-data.html">Upload Attendance Data</a>
-        <a href="late-data.html">View Late Data</a>
-        <a href="reports.html">Create a Report</a>
-        <a href="escalated.html">Escalate a Student</a>
-        <a href="admin.html">Admin</a>
-    </nav>
+<body class="home-page">
+    <main class="home-shell">
+        <h1>Home</h1>
 
-    <div id="content" style="display:none;">
-        <section class="launchpad">
-            <h2>What do you want to do?</h2>
-            <p class="muted-text">Choose the task you want to complete. Each page is set up for a single part of the daily workflow.</p>
-            <div class="launch-grid">
-                <a class="launch-card" href="detentions.html">
-                    <span class="launch-kicker">Daily Roll</span>
-                    <strong>Mark Detention Roll</strong>
-                    <span>Take attendance for detention and process students in bulk.</span>
-                </a>
-                <a class="launch-card" href="upload-data.html">
-                    <span class="launch-kicker">Attendance Import</span>
-                    <strong>Upload Attendance Data</strong>
-                    <span>Import the daily Sentral absence export into the system.</span>
-                </a>
-                <a class="launch-card" href="late-data.html">
-                    <span class="launch-kicker">Live View</span>
-                    <strong>View Late Data</strong>
-                    <span>Open the current late arrivals table on its own page.</span>
-                </a>
-                <a class="launch-card" href="reports.html">
-                    <span class="launch-kicker">Exports</span>
-                    <strong>Create a Report</strong>
-                    <span>Build PDF or Excel reports from the stored data.</span>
-                </a>
-                <a class="launch-card" href="escalated.html">
-                    <span class="launch-kicker">Intervention</span>
-                    <strong>Escalate a Student</strong>
-                    <span>Find a student and flag them for escalation follow-up.</span>
-                </a>
-                <a class="launch-card" href="admin.html">
-                    <span class="launch-kicker">Restricted</span>
-                    <strong>Admin</strong>
-                    <span>Protected backend-controlled actions for approved users only.</span>
-                </a>
-            </div>
-        </section>
-    </div>
+        <div id="auth-section" class="home-auth">
+            <button id="login-btn" class="home-login-btn">Sign In with Google</button>
+            <button id="logout-btn" class="home-logout-btn hidden">Sign Out</button>
+            <p id="user-info"></p>
+        </div>
+
+        <div id="content" class="hidden">
+            <section class="home-actions">
+                <a class="home-action-btn" href="detentions.html">Mark Detention Roll</a>
+                <a class="home-action-btn" href="upload-data.html">Upload Attendance Data</a>
+                <a class="home-action-btn" href="late-data.html">View Late Data</a>
+                <a class="home-action-btn" href="reports.html">Create a Report</a>
+                <a class="home-action-btn" href="escalated.html">Escalate a Student</a>
+                <a class="home-action-btn" href="admin.html">Admin</a>
+            </section>
+        </div>
+    </main>
 </body>
 
 </html>

@@ -39,7 +39,7 @@ logoutBtn.onclick = () => {
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    userInfo.textContent = `Signed in as: ${user.displayName} (${user.email})`;
+    userInfo.textContent = "";
     loginBtn.classList.add("hidden");
     logoutBtn.classList.remove("hidden");
     logoutBtn.classList.add("inline-block");
