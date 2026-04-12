@@ -3,14 +3,14 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Escalate a Student</title>
+    <title>Escalated Students</title>
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script type="module" src="escalated.js" defer></script>
 </head>
 
 <body>
-    <h1>Escalate a Student</h1>
+    <h1>Escalated Students</h1>
 
     <div id="auth-section">
         <button id="login-btn">Sign In with Google</button>
@@ -24,13 +24,13 @@
         <a href="upload-data.html">Upload Attendance Data</a>
         <a href="late-data.html">View Late Data</a>
         <a href="reports.html">Create a Report</a>
-        <a href="escalated.html">Escalate a Student</a>
+        <a href="escalated.html">Escalated Students</a>
         <a href="admin.html">Admin</a>
     </nav>
 
     <section class="page-intro">
         <h2>Escalation Management</h2>
-        <p>Use this page to view escalated students, export the current escalation list when needed, and manually escalate a student.</p>
+        <p>Students are escalated automatically when they exceed the configured attendance thresholds, or they can be escalated manually by staff. Once escalated, they are being followed up by the Deputy Principal and/or HT Admin (Student).</p>
     </section>
 
     <div id="content" style="display:none;">
@@ -58,7 +58,7 @@
                         <th>Year</th>
                         <th>Roll Class</th>
                         <th>Late Count</th>
-                        <th>Reasons</th>
+                        <th>Escalation Cause</th>
                         <th>Detention Status</th>
                         <th>Actions</th>
                     </tr>

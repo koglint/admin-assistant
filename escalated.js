@@ -87,6 +87,9 @@ document.addEventListener('click', async (e) => {
         escalated: true,
         manualEscalation: true,
         escalationReasons: ['manual_escalation'],
+        escalationCause: 'Manual escalation',
+        lastEscalationReasons: ['manual_escalation'],
+        lastEscalationCause: 'Manual escalation',
         escalationSuppression: data.escalationSuppression || {
           lateCountUntil: 0,
           missedCountUntil: 0
@@ -100,7 +103,7 @@ document.addEventListener('click', async (e) => {
     await refreshPage();
   }
 
-  if (e.target.classList.contains('return-to-roll')) {
+  if (e.target.classList.contains('de-escalate-student')) {
     const student = allStudents.find(item => item.studentId === e.target.dataset.id);
     if (!student) return;
 
@@ -114,49 +117,16 @@ document.addEventListener('click', async (e) => {
         escalated: false,
         manualEscalation: false,
         escalationReasons: [],
+        escalationCause: '',
+        lastEscalationReasons: Array.isArray(data.escalationReasons) ? data.escalationReasons : [],
+        lastEscalationCause: data.escalationCause || formatReasons(data.escalationReasons || []),
         escalationSuppression: {
           lateCountUntil: data.lateCount || data.truancyCount || 0,
           missedCountUntil: data.activeDetention?.missedWhilePresentCount || 0
         },
         updatedAt: serverTimestamp(),
         updatedBy: currentUserDescriptor,
-        lastAction: "manual_escalation_return_to_roll"
-      });
-    });
-
-    await refreshPage();
-  }
-
-  if (e.target.classList.contains('clear-escalation')) {
-    const student = allStudents.find(item => item.studentId === e.target.dataset.id);
-    if (!student) return;
-
-    await runTransaction(db, async (transaction) => {
-      const ref = doc(db, 'students', student.studentId);
-      const snap = await transaction.get(ref);
-      if (!snap.exists()) return;
-
-      const data = snap.data();
-      const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
-      history.push({
-        date: new Date().toISOString().split("T")[0],
-        outcome: "cleared_after_escalation"
-      });
-
-      transaction.update(ref, {
-        escalated: false,
-        manualEscalation: false,
-        escalationReasons: [],
-        activeDetention: null,
-        truancyResolved: true,
-        escalationSuppression: {
-          lateCountUntil: data.lateCount || data.truancyCount || 0,
-          missedCountUntil: data.activeDetention?.missedWhilePresentCount || 0
-        },
-        detentionHistory: history,
-        updatedAt: serverTimestamp(),
-        updatedBy: currentUserDescriptor,
-        lastAction: "manual_escalation_cleared"
+        lastAction: "manual_de_escalation"
       });
     });
 
@@ -185,6 +155,9 @@ async function loadAllStudents() {
       lateCount: student.lateCount || student.truancyCount || 0,
       escalated: !!student.escalated,
       escalationReasons: student.escalationReasons || [],
+      escalationCause: student.escalationCause || formatReasons(student.escalationReasons || []),
+      lastEscalationReasons: student.lastEscalationReasons || [],
+      lastEscalationCause: student.lastEscalationCause || '',
       activeDetention: student.activeDetention || null,
       detentionHistory: student.detentionHistory || []
     };
@@ -210,11 +183,10 @@ function renderEscalatedList() {
       <td>${student.yearGroup || '-'}</td>
       <td>${student.rollClass}</td>
       <td>${student.lateCount}</td>
-      <td>${formatReasons(student.escalationReasons)}</td>
+      <td>${student.escalationCause || formatReasons(student.escalationReasons)}</td>
       <td>${formatDetentionStatus(student.activeDetention)}</td>
       <td>
-        <button class="return-to-roll" data-id="${student.studentId}">Return to Detention Roll</button>
-        <button class="clear-escalation secondary-btn" data-id="${student.studentId}">Clear</button>
+        <button class="de-escalate-student secondary-btn" data-id="${student.studentId}">De-escalate</button>
       </td>
     `;
     escalatedBody.appendChild(row);
@@ -265,7 +237,7 @@ function exportEscalatedReport() {
     rollClass: student.rollClass,
     lateCount: student.lateCount,
     detentionStatus: formatDetentionStatus(student.activeDetention),
-    escalationReasons: formatReasons(student.escalationReasons)
+    escalationCause: student.escalationCause || formatReasons(student.escalationReasons)
   }));
 
   if (rows.length === 0) {
@@ -280,8 +252,8 @@ function exportEscalatedReport() {
     doc.text("Escalated Students Report", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Surname", "Given Name", "Year", "Roll Class", "Late Count", "Detention Status", "Reasons"]],
-      body: rows.map(row => [row.surname, row.givenName, row.yearGroup, row.rollClass, row.lateCount, row.detentionStatus, row.escalationReasons]),
+      head: [["Surname", "Given Name", "Year", "Roll Class", "Late Count", "Detention Status", "Escalation Cause"]],
+      body: rows.map(row => [row.surname, row.givenName, row.yearGroup, row.rollClass, row.lateCount, row.detentionStatus, row.escalationCause]),
       styles: { fontSize: 8 }
     });
     doc.save(`escalated_students_${date}.pdf`);
