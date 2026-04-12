@@ -94,6 +94,14 @@ h2 {
   box-shadow: 0 14px 32px rgba(41, 128, 185, 0.22);
 }
 
+.home-login-note {
+  width: 100%;
+  max-width: 620px;
+  margin: 4px 0 0;
+  text-align: center;
+  color: #4f6274;
+}
+
 .home-logout-btn {
   padding-inline: 24px;
 }
