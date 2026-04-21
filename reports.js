@@ -22,6 +22,7 @@ const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const exportFormat = document.getElementById("export-format");
 const generateSummaryBtn = document.getElementById("generate-summary-report");
+const generateMissedDetentionEventsBtn = document.getElementById("generate-missed-detention-events-report");
 const generateMissedDetentionsBtn = document.getElementById("generate-missed-detentions-report");
 const generateLateCountBtn = document.getElementById("generate-late-count-report");
 const generateCombinedEscalationBtn = document.getElementById("generate-combined-escalation-report");
@@ -90,6 +91,10 @@ studentPicker.addEventListener("change", (e) => {
 
 generateSummaryBtn.addEventListener("click", () => {
   exportSummaryReport();
+});
+
+generateMissedDetentionEventsBtn.addEventListener("click", () => {
+  exportMissedDetentionEventsReport();
 });
 
 generateMissedDetentionsBtn.addEventListener("click", () => {
@@ -195,6 +200,34 @@ function exportSummaryReport() {
   const sheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Summary");
   XLSX.writeFile(workbook, `attendance_summary_${date}.xlsx`);
+}
+
+function exportMissedDetentionEventsReport() {
+  const date = getFormattedDate();
+  const rows = buildMissedDetentionRows();
+
+  if (rows.length === 0) {
+    alert("No missed detention records were found.");
+    return;
+  }
+
+  if (exportFormat.value === "pdf") {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text("Missed Detention Report", 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [["Missed Date", "Day", "Surname", "Given Name", "Year", "Roll Class", "Scheduled Date", "Missed Count"]],
+      body: rows.map(row => [row.missedDate, row.day, row.surname, row.givenName, row.yearGroup, row.rollClass, row.scheduledForDate, row.missedCount]),
+      styles: { fontSize: 8 }
+    });
+    doc.save(`missed_detentions_by_day_${date}.pdf`);
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Missed Detentions");
+  XLSX.writeFile(workbook, `missed_detentions_by_day_${date}.xlsx`);
 }
 
 function exportHistoryReport() {
@@ -307,6 +340,46 @@ function getMissedWhilePresentCount(student) {
     : 0;
 
   return Math.max(historyCount, student.activeDetention?.missedWhilePresentCount || 0);
+}
+
+function buildMissedDetentionRows() {
+  return allStudents
+    .flatMap(student => getMissedDetentionHistory(student).map((entry, index) => ({
+      missedDate: entry.date || entry.scheduledForDate || '',
+      day: formatWeekday(entry.date || entry.scheduledForDate || ''),
+      surname: student.surname,
+      givenName: student.givenName,
+      yearGroup: student.yearGroup || '',
+      rollClass: student.rollClass,
+      scheduledForDate: entry.scheduledForDate || entry.date || '',
+      missedCount: index + 1
+    })))
+    .sort((a, b) =>
+      String(a.missedDate).localeCompare(String(b.missedDate)) ||
+      a.surname.localeCompare(b.surname) ||
+      a.givenName.localeCompare(b.givenName)
+    );
+}
+
+function getMissedDetentionHistory(student) {
+  if (!Array.isArray(student.detentionHistory)) {
+    return [];
+  }
+
+  return student.detentionHistory
+    .filter(entry => entry.outcome === "missed_while_present")
+    .sort((a, b) =>
+      String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
+    );
+}
+
+function formatWeekday(dateText) {
+  const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return date.toLocaleDateString('en-AU', { weekday: 'long' });
 }
 
 function matchesEscalationReport(student, reportType) {

@@ -342,7 +342,7 @@ Manual de-escalation clears the current manual escalation state but keeps the mo
 
 `reports.html` + `reports.js`
 
-- loads student data and exports summary/history/escalation reports
+- loads student data and exports summary, missed detention, history, and escalation reports
 - uses `jsPDF`, `jspdf-autotable`, and `SheetJS`
 
 `escalated.html` + `escalated.js`
@@ -498,11 +498,11 @@ This page exports report data from Firestore.
 What it does:
 
 - Loads student summary data from Firestore.
-- Lets the user choose:
-  - simple or detailed output
-  - roll-class or surname sorting
-  - PDF or Excel export
-- Builds grouped roll-class exports when roll sorting is selected.
+- Lets the user choose PDF or Excel export for reports that support both formats.
+- Exports a school-wide summary report.
+- Exports missed detention records sorted by missed detention date.
+- Exports escalation reports for missed-detention and late-count thresholds.
+- Exports selected student late-arrival history.
 
 Libraries used on this page:
 
@@ -528,7 +528,7 @@ This page contains protected admin controls.
 What it does:
 
 - Requires normal Google sign-in first.
-- Only allows the signed-in emails `troy.koglin1@det.nsw.edu.au` or `troy.koglin1@education.nsw.gov.au`.
+- Only allows approved admin usernames from `admin.js` and the backend to sign in with either `@det.nsw.edu.au` or `@education.nsw.gov.au`.
 - Requires a second admin password, but the password itself is checked on the Render backend rather than stored in frontend code.
 - Exposes a purge action that deletes every student document in the `students` Firestore collection through a backend endpoint.
 - Uses a second confirmation step where the user must type `DELETE`.

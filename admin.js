@@ -8,9 +8,22 @@ import {
 
 const ADMIN_PURGE_URL = "https://admin-assistant-backend.onrender.com/admin/purge";
 const ADMIN_AUTHORIZE_URL = "https://admin-assistant-backend.onrender.com/admin/authorize";
-const ALLOWED_ADMIN_EMAILS = [
-  "troy.koglin1@det.nsw.edu.au",
-  "troy.koglin1@education.nsw.gov.au"
+const ALLOWED_ADMIN_USERNAMES = [
+  "troy.koglin1",
+  "gordon.nolan2",
+  "david.boscoscuro",
+  "peter.hales",
+  "janine.neden",
+  "jennifer.lynne.lawrence",
+  "carly.johnston7",
+  "kylie.cutajar4",
+  "louise.oneill6",
+  "david.baldwin12",
+  "nathan.ralstonbryce"
+];
+const ALLOWED_ADMIN_DOMAINS = [
+  "det.nsw.edu.au",
+  "education.nsw.gov.au"
 ];
 
 const loginBtn = document.getElementById('login-btn');
@@ -250,7 +263,8 @@ function updatePurgeAvailability(purgeEnabled = null) {
 }
 
 function isAllowedAdminEmail(email) {
-  return ALLOWED_ADMIN_EMAILS.includes((email || "").toLowerCase());
+  const [username, domain] = (email || "").toLowerCase().split("@");
+  return ALLOWED_ADMIN_USERNAMES.includes(username) && ALLOWED_ADMIN_DOMAINS.includes(domain);
 }
 
 function setPasswordStatus(message, isError) {
