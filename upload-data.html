@@ -34,9 +34,9 @@
             <h2>Upload File</h2>
             <section class="upload-guide">
                 <p><strong>When to export:</strong> Export the Sentral Report AFTER Period 2 and BEFORE Lunch/ second break. This must be done every day.</p>
-                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export</p>
+                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export. </p> <br/> <p>Be sure to download the absences FOR THE DAY (not the week, etc). </p>
                 <p><strong>File type:</strong> upload the Sentral <code>.xls</code> absence export.</p>
-                <p><strong>No upload mode selection is needed:</strong> the backend reads the attendance rows inside the spreadsheet itself and merges any new information into the existing student records for that report date.</p>
+                <p><strong>What if the upload period is missed?</strong> If there are issues with exporting the Sentral report or uploading in the proper window, you may still upload the file at any time. You will just need to let an admin know as there may be minor issues with students being added to the detention for the wrong day. </p>
                 <p><strong>How lateness is identified:</strong> the parser only treats missed roll-call rows as late-to-school cases. It looks for <code>Shorthand</code> / <code>Description</code> combinations of <code>U + Unjustified</code> or <code>? + Absent</code>, and requires the left side of the <code>Time</code> range to start at <code>8:00AM</code> or <code>8:25AM</code>.</p>
                 <p><strong>Arrival time and lateness:</strong> the code splits the <code>Time</code> value on <code>-</code>, uses the right-hand side as the arrival time, and measures lateness against <code>8:35AM</code>.</p>
                 <p><strong>Detention flow:</strong> same-day or next-day detention is decided from the student&apos;s actual arrival time in the file. If they arrived before first break, they can be scheduled for same-day second break. If they arrived after first break, they are carried to the next school day.</p>
