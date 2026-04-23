@@ -30,6 +30,8 @@ const searchInput = document.getElementById("detention-search");
 const sortButtons = document.querySelectorAll(".sort-btn");
 const yearFilterButtons = document.querySelectorAll(".year-filter-btn");
 const tableStats = document.getElementById("table-stats");
+const diagnosticsPanel = document.getElementById("diagnostics-panel");
+const diagnosticsStatus = document.getElementById("diagnostics-status");
 const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
 const YEAR_FILTER_OPTIONS = ["7", "8", "9", "10", "11", "12", "SRC"];
 
@@ -46,10 +48,12 @@ let currentUserDescriptor = "unknown_user";
 loginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
   try {
+    setDiagnostics("Opening Google sign-in...");
     await signInWithPopup(auth, provider);
   } catch (err) {
     alert("Login failed");
-    console.error(err);
+    console.error("[Detention diagnostics] Login failed", err);
+    setDiagnostics(`Login failed: ${formatErrorForDisplay(err)}`, true);
   }
 };
 
@@ -64,6 +68,31 @@ onAuthStateChanged(auth, async (user) => {
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
     content.style.display = "block";
+
+    console.info("[Detention diagnostics] Signed in user", {
+      email: user.email,
+      uid: user.uid,
+      emailVerified: user.emailVerified,
+      providerIds: user.providerData.map(provider => provider.providerId),
+      projectId: auth.app?.options?.projectId
+    });
+    setDiagnostics(`Signed in as ${user.email || user.uid}. Checking Firestore access...`);
+
+    try {
+      const tokenResult = await user.getIdTokenResult();
+      console.info("[Detention diagnostics] ID token claims", {
+        email: tokenResult.claims.email,
+        emailVerified: tokenResult.claims.email_verified,
+        signInProvider: tokenResult.signInProvider,
+        authTime: tokenResult.authTime,
+        issuedAtTime: tokenResult.issuedAtTime,
+        expirationTime: tokenResult.expirationTime
+      });
+    } catch (err) {
+      console.error("[Detention diagnostics] Could not read ID token result", err);
+      setDiagnostics(`Signed in, but could not inspect the Firebase ID token: ${formatErrorForDisplay(err)}`, true);
+    }
+
     await loadDetentionSummary();
     updateSortButtons();
     updateYearFilterButtons();
@@ -74,6 +103,7 @@ onAuthStateChanged(auth, async (user) => {
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
     content.style.display = "none";
+    setDiagnostics("");
   }
 });
 
@@ -216,12 +246,48 @@ async function loadDetentionSummary() {
   restoreSelectedStudents();
   detentionDataCache = [];
 
-  const snapshot = await getDocs(collection(db, "students"));
+  setDiagnostics("Loading Firestore collection: students...");
+  console.info("[Detention diagnostics] Starting Firestore read", {
+    collection: "students",
+    currentUserEmail: auth.currentUser?.email || null,
+    currentUserUid: auth.currentUser?.uid || null,
+    projectId: auth.app?.options?.projectId
+  });
+
+  let snapshot;
+  try {
+    snapshot = await getDocs(collection(db, "students"));
+  } catch (err) {
+    detentionDataCache = [];
+    filteredDetentionData = [];
+    tableBody.innerHTML = `<tr><td colspan="10">Could not load student data. Check diagnostics above and the browser console.</td></tr>`;
+    tableStats.textContent = "Firestore load failed.";
+    console.error("[Detention diagnostics] Firestore students read failed", {
+      code: err.code,
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    setDiagnostics(`Firestore read failed for ${auth.currentUser?.email || "current user"}: ${formatErrorForDisplay(err)}`, true);
+    return;
+  }
+
+  let studentsWithTruancies = 0;
+  let studentsWithoutTruancies = 0;
+  let studentsHiddenByYearFilter = 0;
+  let studentsHiddenAsEscalated = 0;
+  let studentsHiddenAsResolved = 0;
+
   snapshot.forEach(docSnap => {
     const student = docSnap.data();
     const id = docSnap.id;
 
-    if (!Array.isArray(student.truancies) || student.truancies.length === 0) return;
+    if (!Array.isArray(student.truancies) || student.truancies.length === 0) {
+      studentsWithoutTruancies += 1;
+      return;
+    }
+
+    studentsWithTruancies += 1;
 
     const latest = [...student.truancies].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
@@ -239,7 +305,46 @@ async function loadDetentionSummary() {
     });
   });
 
+  detentionDataCache.forEach(student => {
+    if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) studentsHiddenByYearFilter += 1;
+    if (!showEscalated && student.escalated) studentsHiddenAsEscalated += 1;
+    if (hideResolved && student.truancyResolved) studentsHiddenAsResolved += 1;
+  });
+
+  console.info("[Detention diagnostics] Firestore students read succeeded", {
+    totalDocs: snapshot.size,
+    studentsWithTruancies,
+    studentsWithoutTruancies,
+    studentsCachedForDetentionPage: detentionDataCache.length,
+    filters: {
+      selectedYearFilters: [...selectedYearFilters],
+      showEscalated,
+      hideResolved,
+      studentsHiddenByYearFilter,
+      studentsHiddenAsEscalated,
+      studentsHiddenAsResolved
+    }
+  });
+  setDiagnostics(`Firestore read succeeded for ${auth.currentUser?.email || "current user"}: ${snapshot.size} student document(s), ${studentsWithTruancies} with truancy records before filters.`);
   applyFiltersAndRender();
+}
+
+function setDiagnostics(message, isError = false) {
+  if (!diagnosticsPanel || !diagnosticsStatus) return;
+
+  diagnosticsPanel.style.display = message ? "block" : "none";
+  diagnosticsStatus.textContent = message;
+  diagnosticsStatus.classList.toggle("error-text", isError);
+  diagnosticsStatus.classList.toggle("success-text", Boolean(message) && !isError);
+}
+
+function formatErrorForDisplay(err) {
+  if (!err) return "Unknown error";
+
+  const parts = [];
+  if (err.code) parts.push(err.code);
+  if (err.message) parts.push(err.message);
+  return parts.join(" - ") || String(err);
 }
 
 function applyFiltersAndRender() {
@@ -299,6 +404,12 @@ function compareStudents(a, b) {
 function renderDetentionTable(data) {
   tableBody.innerHTML = "";
 
+  if (data.length === 0) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td colspan="10">No students match the current detention roll filters.</td>';
+    tableBody.appendChild(row);
+  }
+
   data.forEach(student => {
     const tr = document.createElement("tr");
     tr.setAttribute("data-resolved", student.truancyResolved);
@@ -334,6 +445,18 @@ function updateStats() {
   const visibleCount = filteredDetentionData.length;
   const selectedVisibleCount = filteredDetentionData.filter(student => selectedStudentIds.has(student.studentId)).length;
   tableStats.textContent = `${visibleCount} student(s) visible, ${selectedVisibleCount} selected in this view.`;
+
+  if (diagnosticsStatus?.textContent?.startsWith("Firestore read succeeded")) {
+    console.info("[Detention diagnostics] Rendered detention table", {
+      cachedStudentsBeforeFilters: detentionDataCache.length,
+      visibleStudentsAfterFilters: visibleCount,
+      selectedVisibleCount,
+      searchTextLength: searchInput.value.trim().length,
+      selectedYearFilters: [...selectedYearFilters],
+      showEscalated,
+      hideResolved
+    });
+  }
 }
 
 function updateSortButtons() {
