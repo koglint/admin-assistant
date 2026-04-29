@@ -398,7 +398,17 @@ function getFormattedDate() {
 }
 
 function getLocalDateString() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find(part => part.type === "year")?.value || "";
+  const month = parts.find(part => part.type === "month")?.value || "";
+  const day = parts.find(part => part.type === "day")?.value || "";
+  return `${year}-${month}-${day}`;
 }
 
 function getMissedWhilePresentCount(student) {
@@ -424,10 +434,23 @@ function buildMissedDetentionRows() {
       missedCount: index + 1
     })))
     .sort((a, b) =>
-      String(a.missedDate).localeCompare(String(b.missedDate)) ||
+      compareYearGroups(a.yearGroup, b.yearGroup) ||
       a.surname.localeCompare(b.surname) ||
-      a.givenName.localeCompare(b.givenName)
+      a.givenName.localeCompare(b.givenName) ||
+      String(a.missedDate).localeCompare(String(b.missedDate))
     );
+}
+
+function compareYearGroups(a, b) {
+  const numericA = Number.parseInt(a, 10);
+  const numericB = Number.parseInt(b, 10);
+  const bothNumeric = !Number.isNaN(numericA) && !Number.isNaN(numericB);
+
+  if (bothNumeric && numericA !== numericB) {
+    return numericA - numericB;
+  }
+
+  return String(a || "").localeCompare(String(b || ""));
 }
 
 function getMissedDetentionHistory(student) {
