@@ -173,18 +173,36 @@ unselectAllBtn.addEventListener("click", () => {
 
 markPresentBtn.addEventListener("click", async () => {
   const selectedIds = [...selectedStudentIds];
-  if (selectedIds.length === 0) {
-    alert("No students selected.");
+  const today = getLocalDateString();
+  const studentsDueToday = filteredDetentionData.filter(student =>
+    !student.escalated
+    && student.activeDetention
+    && student.activeDetention.status === "open"
+    && student.activeDetention.scheduledForDate === today
+  );
+
+  if (selectedIds.length === 0 && studentsDueToday.length === 0) {
+    alert("No students selected, and no visible detentions are due today.");
     return;
   }
 
-  const confirmed = confirm(`Mark detention as successfully completed for ${selectedIds.length} student(s)?`);
+  const missedStudents = studentsDueToday.filter(student => !selectedStudentIds.has(student.studentId));
+  const confirmed = confirm(
+    `Process today's detention roll?\n\n`
+    + `Present/served: ${selectedIds.length}\n`
+    + `Not present and to be checked against school attendance: ${missedStudents.length}`
+  );
   if (!confirmed) return;
 
-  const updatedCount = await markSelectedPresent(selectedIds);
+  const servedCount = await markSelectedPresent(selectedIds);
+  const missedCount = await markMissedDetentions(missedStudents, today);
   clearSelectedStudents();
   await loadDetentionSummary();
-  alert(updatedCount > 0 ? `${updatedCount} student(s) marked as successfully completed detention.` : "No student records needed updating.");
+  alert(
+    `Detention roll processed.\n\n`
+    + `${servedCount} student(s) marked as successfully completed detention.\n`
+    + `${missedCount} student(s) marked as absent from detention and waiting for school-attendance confirmation from the upload data.`
+  );
 });
 
 tableBody.addEventListener("change", (e) => {
@@ -301,7 +319,8 @@ async function loadDetentionSummary() {
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
-      escalated: !!student.escalated
+      escalated: !!student.escalated,
+      activeDetention: student.activeDetention || null
     });
   });
 
@@ -558,8 +577,12 @@ async function updateSelectedStudents(selectedIds, updater) {
   return updatedCount;
 }
 
+function getLocalDateString() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
+}
+
 function studentToManualDetention() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   return {
     status: "open",
     createdFromLateDate: today,
@@ -589,7 +612,7 @@ async function markSelectedPresent(selectedIds) {
       }
 
       const currentCount = data.detentionsServed || 0;
-      const today = new Date().toISOString().split("T")[0];
+      const today = getLocalDateString();
       const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
       history.push({
         date: today,
@@ -605,11 +628,58 @@ async function markSelectedPresent(selectedIds) {
         detentionHistory: history,
         updatedAt: serverTimestamp(),
         updatedBy: currentUserDescriptor,
-        lastAction: "detention_marked_present"
+        lastAction: "detention_marked_present",
+        lastRollMark: "present",
+        lastRollMarkedAt: serverTimestamp()
       });
       return true;
     });
   });
+}
+
+async function markMissedDetentions(missedStudents, rollDate) {
+  let updatedCount = 0;
+
+  for (const student of missedStudents) {
+    const ref = doc(db, "students", student.studentId);
+    try {
+      const updated = await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists()) return false;
+
+        const data = snap.data();
+        if (data?.escalated) return false;
+
+        const activeDetention = data.activeDetention;
+        if (!activeDetention || activeDetention.status !== "open") return false;
+        if (activeDetention.scheduledForDate !== rollDate) return false;
+        if (activeDetention.pendingAttendanceCheckDate === rollDate) return false;
+
+        transaction.update(ref, {
+          activeDetention: {
+            ...activeDetention,
+            lastRollMark: "absent",
+            lastRollMarkedAt: new Date().toISOString(),
+            pendingAttendanceCheckDate: rollDate
+          },
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUserDescriptor,
+          lastAction: "detention_marked_absent_pending_attendance_check",
+          lastRollMark: "absent",
+          lastRollMarkedAt: serverTimestamp()
+        });
+        return true;
+      });
+
+      if (updated) {
+        updatedCount += 1;
+      }
+    } catch (err) {
+      console.error(`Failed to mark missed detention for ${student.studentId}`, err);
+    }
+  }
+
+  return updatedCount;
 }
 
 async function undoServedDetention(studentId) {
@@ -632,7 +702,7 @@ async function undoServedDetention(studentId) {
       reopenedDetention = {
         status: "open",
         createdFromLateDate: servedEntry.date,
-        scheduledForDate: new Date().toISOString().split("T")[0],
+        scheduledForDate: getLocalDateString(),
         sourceContext: "manual_reopen",
         createdAt: new Date().toISOString(),
         lastRollMark: null,

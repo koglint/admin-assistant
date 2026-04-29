@@ -216,8 +216,19 @@ function exportMissedDetentionEventsReport() {
     doc.text("Missed Detention Report", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Missed Date", "Day", "Surname", "Given Name", "Year", "Roll Class", "Scheduled Date", "Missed Count"]],
-      body: rows.map(row => [row.missedDate, row.day, row.surname, row.givenName, row.yearGroup, row.rollClass, row.scheduledForDate, row.missedCount]),
+      head: [["Missed Date", "Day", "Surname", "Given Name", "Year", "Roll Class", "Scheduled Date", "Attendance At School", "Outcome", "Missed Count"]],
+      body: rows.map(row => [
+        row.missedDate,
+        row.day,
+        row.surname,
+        row.givenName,
+        row.yearGroup,
+        row.rollClass,
+        row.scheduledForDate,
+        row.attendanceAtSchool,
+        row.outcomeLabel,
+        row.missedCount
+      ]),
       styles: { fontSize: 8 }
     });
     doc.save(`missed_detentions_by_day_${date}.pdf`);
@@ -352,6 +363,8 @@ function buildMissedDetentionRows() {
       yearGroup: student.yearGroup || '',
       rollClass: student.rollClass,
       scheduledForDate: entry.scheduledForDate || entry.date || '',
+      attendanceAtSchool: getAttendanceAtSchoolLabel(entry),
+      outcomeLabel: getMissedDetentionOutcomeLabel(entry),
       missedCount: index + 1
     })))
     .sort((a, b) =>
@@ -362,15 +375,35 @@ function buildMissedDetentionRows() {
 }
 
 function getMissedDetentionHistory(student) {
-  if (!Array.isArray(student.detentionHistory)) {
-    return [];
-  }
+  const history = Array.isArray(student.detentionHistory)
+    ? student.detentionHistory.filter(entry =>
+      entry.outcome === "missed_while_present" || entry.outcome === "absent_from_school"
+    )
+    : [];
 
-  return student.detentionHistory
-    .filter(entry => entry.outcome === "missed_while_present")
-    .sort((a, b) =>
-      String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
-    );
+  const pendingEntry = student.activeDetention?.pendingAttendanceCheckDate
+    ? [{
+      date: student.activeDetention.pendingAttendanceCheckDate,
+      scheduledForDate: student.activeDetention.scheduledForDate || student.activeDetention.pendingAttendanceCheckDate,
+      outcome: "pending_attendance_check"
+    }]
+    : [];
+
+  return [...history, ...pendingEntry].sort((a, b) =>
+    String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
+  );
+}
+
+function getAttendanceAtSchoolLabel(entry) {
+  if (entry.outcome === "missed_while_present") return "Present";
+  if (entry.outcome === "absent_from_school") return "Absent";
+  return "Pending check";
+}
+
+function getMissedDetentionOutcomeLabel(entry) {
+  if (entry.outcome === "missed_while_present") return "Missed detention while present";
+  if (entry.outcome === "absent_from_school") return "Missed detention while absent from school";
+  return "Missed detention awaiting attendance confirmation";
 }
 
 function formatWeekday(dateText) {
