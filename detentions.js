@@ -16,6 +16,9 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
+const ATTENDANCE_DAY_LOOKUP_URL = `${BACKEND_BASE_URL}/attendance-days/lookup`;
+
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userInfo = document.getElementById('user-info');
@@ -651,10 +654,13 @@ async function markSelectedPresent(selectedIds) {
 
 async function markMissedDetentions(missedStudents, rollDate) {
   let updatedCount = 0;
+  const attendanceByKey = await fetchAttendanceDays(missedStudents.map(student => ({
+    studentId: student.studentId,
+    date: rollDate
+  })));
 
   for (const student of missedStudents) {
     const ref = doc(db, "students", student.studentId);
-    const attendanceRef = doc(db, "attendance_days", `${student.studentId}_${rollDate}`);
     try {
       const updated = await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(ref);
@@ -668,8 +674,7 @@ async function markMissedDetentions(missedStudents, rollDate) {
         if (activeDetention.scheduledForDate !== rollDate) return false;
         if (activeDetention.pendingAttendanceCheckDate === rollDate) return false;
 
-        const attendanceSnap = await transaction.get(attendanceRef);
-        const attendanceDay = attendanceSnap.exists() ? attendanceSnap.data() : null;
+        const attendanceDay = attendanceByKey.get(`${student.studentId}_${rollDate}`) || null;
         const hasAttendanceDecision = attendanceDay?.hasFullDayCoverage === true;
         const markedAt = new Date().toISOString();
 
@@ -732,6 +737,32 @@ async function markMissedDetentions(missedStudents, rollDate) {
   }
 
   return updatedCount;
+}
+
+async function fetchAttendanceDays(pairs) {
+  const validPairs = pairs.filter(pair => pair?.studentId && pair?.date);
+  if (validPairs.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const response = await fetch(ATTENDANCE_DAY_LOOKUP_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ pairs: validPairs })
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== "success") {
+      throw new Error(data.message || "Attendance lookup failed.");
+    }
+
+    return new Map(Object.entries(data.records || {}));
+  } catch (err) {
+    console.error("Failed to load attendance-day records for detention roll", err);
+    return new Map();
+  }
 }
 
 async function undoServedDetention(studentId) {

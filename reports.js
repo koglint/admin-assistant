@@ -16,6 +16,9 @@ const jsPDF = window.jspdf.jsPDF;
 import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/+esm';
 import * as XLSX from 'https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs';
 
+const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
+const ATTENDANCE_DAY_LOOKUP_URL = `${BACKEND_BASE_URL}/attendance-days/lookup`;
+
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
@@ -94,8 +97,8 @@ generateSummaryBtn.addEventListener("click", () => {
   exportSummaryReport();
 });
 
-generateMissedDetentionEventsBtn.addEventListener("click", () => {
-  exportMissedDetentionEventsReport();
+generateMissedDetentionEventsBtn.addEventListener("click", async () => {
+  await exportMissedDetentionEventsReport();
 });
 
 generateMissedDetentionsBtn.addEventListener("click", () => {
@@ -115,17 +118,8 @@ generateHistoryBtn.addEventListener("click", () => {
 });
 
 async function loadStudents() {
-  const [studentSnapshot, attendanceSnapshot] = await Promise.all([
-    getDocs(collection(db, "students")),
-    getDocs(collection(db, "attendance_days"))
-  ]);
-
+  const studentSnapshot = await getDocs(collection(db, "students"));
   attendanceDaysByKey.clear();
-  attendanceSnapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    if (!data?.studentId || !data?.date) return;
-    attendanceDaysByKey.set(`${data.studentId}_${data.date}`, data);
-  });
 
   allStudents = studentSnapshot.docs.map(docSnap => {
     const data = docSnap.data();
@@ -214,7 +208,8 @@ function exportSummaryReport() {
   XLSX.writeFile(workbook, `attendance_summary_${date}.xlsx`);
 }
 
-function exportMissedDetentionEventsReport() {
+async function exportMissedDetentionEventsReport() {
+  await hydrateAttendanceDaysForMissedDetentionReport();
   const date = getFormattedDate();
   const rows = buildMissedDetentionRows();
 
@@ -251,6 +246,51 @@ function exportMissedDetentionEventsReport() {
   const sheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Missed Detentions");
   XLSX.writeFile(workbook, `missed_detentions_by_day_${date}.xlsx`);
+}
+
+async function hydrateAttendanceDaysForMissedDetentionReport() {
+  const pairs = [];
+
+  allStudents.forEach(student => {
+    const activeDetention = student.activeDetention;
+    if (!activeDetention || activeDetention.status !== "open") {
+      return;
+    }
+
+    const eventDate = activeDetention.pendingAttendanceCheckDate || activeDetention.scheduledForDate;
+    if (!eventDate) {
+      return;
+    }
+
+    const key = `${student.studentId}_${eventDate}`;
+    if (!attendanceDaysByKey.has(key)) {
+      pairs.push({ studentId: student.studentId, date: eventDate });
+    }
+  });
+
+  if (pairs.length === 0) {
+    return;
+  }
+
+  try {
+    const response = await fetch(ATTENDANCE_DAY_LOOKUP_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ pairs })
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== "success") {
+      throw new Error(data.message || "Attendance lookup failed.");
+    }
+
+    Object.entries(data.records || {}).forEach(([key, value]) => {
+      attendanceDaysByKey.set(key, value);
+    });
+  } catch (err) {
+    console.error("Failed to load attendance-day records for reports", err);
+  }
 }
 
 function exportHistoryReport() {
