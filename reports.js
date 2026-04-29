@@ -223,15 +223,15 @@ async function exportMissedDetentionEventsReport() {
     doc.text("Missed Detention Report", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Missed Date", "Day", "Surname", "Given Name", "Year", "Roll Class", "Scheduled Date", "Attendance At School", "Outcome", "Missed Count"]],
+      head: [["Late Date", "Detention Day", "Surname", "Given Name", "Year", "Roll Class", "Detention Date", "Attendance At School", "Outcome", "Missed Count"]],
       body: rows.map(row => [
-        row.missedDate,
+        row.lateDate,
         row.day,
         row.surname,
         row.givenName,
         row.yearGroup,
         row.rollClass,
-        row.scheduledForDate,
+        row.detentionDate,
         row.attendanceAtSchool,
         row.outcomeLabel,
         row.missedCount
@@ -422,13 +422,13 @@ function getMissedWhilePresentCount(student) {
 function buildMissedDetentionRows() {
   return allStudents
     .flatMap(student => getMissedDetentionHistory(student).map((entry, index) => ({
-      missedDate: entry.date || entry.scheduledForDate || '',
-      day: formatWeekday(entry.date || entry.scheduledForDate || ''),
+      lateDate: entry.lateDate || '',
+      day: formatWeekday(entry.scheduledForDate || entry.date || ''),
       surname: student.surname,
       givenName: student.givenName,
       yearGroup: student.yearGroup || '',
       rollClass: student.rollClass,
-      scheduledForDate: entry.scheduledForDate || entry.date || '',
+      detentionDate: entry.scheduledForDate || entry.date || '',
       attendanceAtSchool: getAttendanceAtSchoolLabel(entry),
       outcomeLabel: getMissedDetentionOutcomeLabel(entry),
       missedCount: index + 1
@@ -437,7 +437,7 @@ function buildMissedDetentionRows() {
       compareYearGroups(a.yearGroup, b.yearGroup) ||
       a.surname.localeCompare(b.surname) ||
       a.givenName.localeCompare(b.givenName) ||
-      String(a.missedDate).localeCompare(String(b.missedDate))
+      String(a.detentionDate).localeCompare(String(b.detentionDate))
     );
 }
 
@@ -475,6 +475,7 @@ function buildPendingAttendanceEntry(student) {
   if (attendanceDay?.hasFullDayCoverage) {
     return {
       date: pendingDate,
+      lateDate: student.activeDetention?.createdFromLateDate || "",
       scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
       outcome: attendanceDay.presentAtSchool ? "missed_while_present" : "absent_from_school"
     };
@@ -482,6 +483,7 @@ function buildPendingAttendanceEntry(student) {
 
   return {
     date: pendingDate,
+    lateDate: student.activeDetention?.createdFromLateDate || "",
     scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
     outcome: "pending_attendance_check"
   };

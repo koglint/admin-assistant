@@ -696,7 +696,8 @@ async function markMissedDetentions(missedStudents, rollDate) {
 
           history.push({
             date: rollDate,
-            scheduledForDate: rollDate,
+            lateDate: activeDetention.createdFromLateDate || "",
+            scheduledForDate: activeDetention.scheduledForDate || rollDate,
             outcome: presentAtSchool ? "missed_while_present" : "absent_from_school"
           });
 
