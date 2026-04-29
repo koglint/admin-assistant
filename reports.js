@@ -357,6 +357,10 @@ function getFormattedDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function getLocalDateString() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
+}
+
 function getMissedWhilePresentCount(student) {
   const historyCount = Array.isArray(student.detentionHistory)
     ? student.detentionHistory.filter(entry => entry.outcome === "missed_while_present").length
@@ -393,11 +397,10 @@ function getMissedDetentionHistory(student) {
     )
     : [];
 
-  const pendingEntry = student.activeDetention?.pendingAttendanceCheckDate
-    ? [buildPendingAttendanceEntry(student)]
-    : [];
+  const pendingOrDerivedEntry = buildCurrentMissedDetentionEntry(student);
+  const extraEntries = pendingOrDerivedEntry ? [pendingOrDerivedEntry] : [];
 
-  return [...history, ...pendingEntry].sort((a, b) =>
+  return [...history, ...extraEntries].sort((a, b) =>
     String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
   );
 }
@@ -419,6 +422,44 @@ function buildPendingAttendanceEntry(student) {
     scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
     outcome: "pending_attendance_check"
   };
+}
+
+function buildCurrentMissedDetentionEntry(student) {
+  const activeDetention = student.activeDetention;
+  if (!activeDetention || activeDetention.status !== "open") {
+    return null;
+  }
+
+  const pendingDate = activeDetention.pendingAttendanceCheckDate || "";
+  const scheduledDate = activeDetention.scheduledForDate || "";
+  const eventDate = pendingDate || scheduledDate;
+  if (!eventDate) {
+    return null;
+  }
+
+  const today = getLocalDateString();
+  const isExplicitlyPending = Boolean(pendingDate);
+  const isOverdueDetention = !isExplicitlyPending && scheduledDate < today;
+  if (!isExplicitlyPending && !isOverdueDetention) {
+    return null;
+  }
+
+  const history = Array.isArray(student.detentionHistory) ? student.detentionHistory : [];
+  const alreadyRecorded = history.some(entry =>
+    (entry.outcome === "missed_while_present" || entry.outcome === "absent_from_school")
+    && (entry.date === eventDate || entry.scheduledForDate === eventDate)
+  );
+  if (alreadyRecorded) {
+    return null;
+  }
+
+  return buildPendingAttendanceEntry({
+    ...student,
+    activeDetention: {
+      ...activeDetention,
+      pendingAttendanceCheckDate: eventDate
+    }
+  });
 }
 
 function getAttendanceAtSchoolLabel(entry) {
