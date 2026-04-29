@@ -34,6 +34,7 @@ const yearGroupSelect = document.getElementById("year-group-select");
 const studentPicker = document.getElementById("student-picker");
 
 let allStudents = [];
+const attendanceDaysByKey = new Map();
 const selectedStudentIds = new Set();
 
 loginBtn.onclick = async () => {
@@ -114,8 +115,19 @@ generateHistoryBtn.addEventListener("click", () => {
 });
 
 async function loadStudents() {
-  const snapshot = await getDocs(collection(db, "students"));
-  allStudents = snapshot.docs.map(docSnap => {
+  const [studentSnapshot, attendanceSnapshot] = await Promise.all([
+    getDocs(collection(db, "students")),
+    getDocs(collection(db, "attendance_days"))
+  ]);
+
+  attendanceDaysByKey.clear();
+  attendanceSnapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    if (!data?.studentId || !data?.date) return;
+    attendanceDaysByKey.set(`${data.studentId}_${data.date}`, data);
+  });
+
+  allStudents = studentSnapshot.docs.map(docSnap => {
     const data = docSnap.data();
     return {
       studentId: docSnap.id,
@@ -382,16 +394,31 @@ function getMissedDetentionHistory(student) {
     : [];
 
   const pendingEntry = student.activeDetention?.pendingAttendanceCheckDate
-    ? [{
-      date: student.activeDetention.pendingAttendanceCheckDate,
-      scheduledForDate: student.activeDetention.scheduledForDate || student.activeDetention.pendingAttendanceCheckDate,
-      outcome: "pending_attendance_check"
-    }]
+    ? [buildPendingAttendanceEntry(student)]
     : [];
 
   return [...history, ...pendingEntry].sort((a, b) =>
     String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
   );
+}
+
+function buildPendingAttendanceEntry(student) {
+  const pendingDate = student.activeDetention?.pendingAttendanceCheckDate || "";
+  const attendanceDay = attendanceDaysByKey.get(`${student.studentId}_${pendingDate}`);
+
+  if (attendanceDay?.hasFullDayCoverage) {
+    return {
+      date: pendingDate,
+      scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
+      outcome: attendanceDay.presentAtSchool ? "missed_while_present" : "absent_from_school"
+    };
+  }
+
+  return {
+    date: pendingDate,
+    scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
+    outcome: "pending_attendance_check"
+  };
 }
 
 function getAttendanceAtSchoolLabel(entry) {

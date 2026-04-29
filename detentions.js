@@ -581,6 +581,18 @@ function getLocalDateString() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
 }
 
+function nextSchoolDay(dateString) {
+  const [year, month, day] = String(dateString).split("-").map(Number);
+  const next = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+  next.setUTCDate(next.getUTCDate() + 1);
+
+  while (next.getUTCDay() === 0 || next.getUTCDay() === 6) {
+    next.setUTCDate(next.getUTCDate() + 1);
+  }
+
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
+}
+
 function studentToManualDetention() {
   const today = getLocalDateString();
   return {
@@ -642,6 +654,7 @@ async function markMissedDetentions(missedStudents, rollDate) {
 
   for (const student of missedStudents) {
     const ref = doc(db, "students", student.studentId);
+    const attendanceRef = doc(db, "attendance_days", `${student.studentId}_${rollDate}`);
     try {
       const updated = await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(ref);
@@ -655,11 +668,50 @@ async function markMissedDetentions(missedStudents, rollDate) {
         if (activeDetention.scheduledForDate !== rollDate) return false;
         if (activeDetention.pendingAttendanceCheckDate === rollDate) return false;
 
+        const attendanceSnap = await transaction.get(attendanceRef);
+        const attendanceDay = attendanceSnap.exists() ? attendanceSnap.data() : null;
+        const hasAttendanceDecision = attendanceDay?.hasFullDayCoverage === true;
+        const markedAt = new Date().toISOString();
+
+        if (hasAttendanceDecision) {
+          const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
+          const presentAtSchool = attendanceDay.presentAtSchool !== false;
+          const currentMissedCount = Number(activeDetention.missedWhilePresentCount || 0);
+          const nextMissedCount = presentAtSchool ? currentMissedCount + 1 : currentMissedCount;
+
+          history.push({
+            date: rollDate,
+            scheduledForDate: rollDate,
+            outcome: presentAtSchool ? "missed_while_present" : "absent_from_school"
+          });
+
+          transaction.update(ref, {
+            activeDetention: {
+              ...activeDetention,
+              scheduledForDate: nextSchoolDay(rollDate),
+              pendingAttendanceCheckDate: null,
+              lastEvaluatedDate: rollDate,
+              lastRollMark: "absent",
+              lastRollMarkedAt: markedAt,
+              missedWhilePresentCount: nextMissedCount
+            },
+            detentionHistory: history,
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUserDescriptor,
+            lastAction: presentAtSchool
+              ? "detention_missed_while_present_resolved_from_attendance_record"
+              : "detention_absence_resolved_from_attendance_record",
+            lastRollMark: "absent",
+            lastRollMarkedAt: serverTimestamp()
+          });
+          return true;
+        }
+
         transaction.update(ref, {
           activeDetention: {
             ...activeDetention,
             lastRollMark: "absent",
-            lastRollMarkedAt: new Date().toISOString(),
+            lastRollMarkedAt: markedAt,
             pendingAttendanceCheckDate: rollDate
           },
           updatedAt: serverTimestamp(),
