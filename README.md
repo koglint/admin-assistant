@@ -54,8 +54,9 @@ When a new late arrival is added, the backend creates a detention if the student
 
 Detention date logic:
 
-- if the student arrived before first break, detention can be same day
-- if the student arrived after first break, detention moves to the next school day
+- Tuesday late arrivals move to Wednesday because Tuesday detention runs at first break
+- Monday, Wednesday, Thursday, and Friday arrivals before first break can be same-day detention
+- Monday, Wednesday, Thursday, and Friday arrivals from first break onward move to the next school day
 
 First-break cutoff:
 
