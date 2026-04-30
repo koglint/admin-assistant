@@ -26,6 +26,7 @@ const content = document.getElementById("content");
 const exportFormat = document.getElementById("export-format");
 const generateSummaryBtn = document.getElementById("generate-summary-report");
 const generateMissedDetentionEventsBtn = document.getElementById("generate-missed-detention-events-report");
+const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
 const generateMissedDetentionsBtn = document.getElementById("generate-missed-detentions-report");
 const generateLateCountBtn = document.getElementById("generate-late-count-report");
 const generateCombinedEscalationBtn = document.getElementById("generate-combined-escalation-report");
@@ -98,7 +99,11 @@ generateSummaryBtn.addEventListener("click", () => {
 });
 
 generateMissedDetentionEventsBtn.addEventListener("click", async () => {
-  await exportMissedDetentionEventsReport();
+  await runWithButtonLoading(generateMissedDetentionEventsBtn, "Generating...", exportMissedDetentionEventsReport);
+});
+
+generateMissedDetentionPdfBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
 });
 
 generateMissedDetentionsBtn.addEventListener("click", () => {
@@ -116,6 +121,21 @@ generateCombinedEscalationBtn.addEventListener("click", () => {
 generateHistoryBtn.addEventListener("click", () => {
   exportHistoryReport();
 });
+
+async function runWithButtonLoading(button, loadingText, action) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.classList.add("loading-button");
+  button.textContent = loadingText;
+
+  try {
+    await action();
+  } finally {
+    button.textContent = originalText;
+    button.classList.remove("loading-button");
+    button.disabled = false;
+  }
+}
 
 async function loadStudents() {
   const studentSnapshot = await getDocs(collection(db, "students"));
@@ -246,6 +266,43 @@ async function exportMissedDetentionEventsReport() {
   const sheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Missed Detentions");
   XLSX.writeFile(workbook, `missed_detentions_by_day_${date}.xlsx`);
+}
+
+async function exportMissedDetentionNoticePdf() {
+  await hydrateAttendanceDaysForMissedDetentionReport();
+  const rows = buildMissedDetentionNoticeRows();
+
+  if (rows.length === 0) {
+    alert("No missed detention records available to export.");
+    return;
+  }
+
+  const date = getLocalDateString();
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 20;
+  const maxTextWidth = pageWidth - (marginX * 2);
+  const noticeText = getMissedDetentionNoticeText();
+
+  rows.forEach((student, index) => {
+    if (index > 0) {
+      doc.addPage();
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text(student.fullName, marginX, 28);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`Year ${student.yearGroup || "-"}    Roll Class: ${student.rollClass || "-"}`, marginX, 38);
+
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(noticeText, maxTextWidth);
+    doc.text(lines, marginX, 55, { lineHeightFactor: 1.35 });
+  });
+
+  doc.save(`missed-detention-notices-${date}.pdf`);
 }
 
 async function hydrateAttendanceDaysForMissedDetentionReport() {
@@ -422,6 +479,7 @@ function getMissedWhilePresentCount(student) {
 function buildMissedDetentionRows() {
   return allStudents
     .flatMap(student => getMissedDetentionHistory(student).map((entry, index) => ({
+      studentId: student.studentId,
       lateDate: entry.lateDate || '',
       day: formatWeekday(entry.scheduledForDate || entry.date || ''),
       surname: student.surname,
@@ -441,6 +499,46 @@ function buildMissedDetentionRows() {
     );
 }
 
+function buildMissedDetentionNoticeRows() {
+  const studentsById = new Map();
+
+  buildMissedDetentionRows().forEach(row => {
+    const studentId = row.studentId;
+    if (!studentId || studentsById.has(studentId)) {
+      return;
+    }
+
+    studentsById.set(studentId, {
+      fullName: formatStudentFullName(row.givenName, row.surname),
+      yearGroup: row.yearGroup || "",
+      rollClass: row.rollClass || ""
+    });
+  });
+
+  return [...studentsById.values()];
+}
+
+function getMissedDetentionNoticeText() {
+  return [
+    "This week you arrived to school late (after roll call) and did not bring a note. You had a detention scheduled, but did not attend. Please attend the detention room at SECOND BREAK TODAY (1:15-1:30), in the appropriate room below:",
+    "",
+    "Year 7 in D19",
+    "Year 8 in D20",
+    "Year 9 in A6",
+    "Year 10 in A7",
+    "Year 11 in A8",
+    "Year 12 in A9",
+    "",
+    "If you refuse to attend a detention for your late arrival to school, you may receive an after school detention.",
+    "",
+    "If you believe this detention is an error, you must still attend the detention room and talk to the teacher on supervision."
+  ].join("\n");
+}
+
+function formatStudentFullName(givenName, surname) {
+  return [givenName, surname].filter(Boolean).join(" ").trim() || "Student";
+}
+
 function compareYearGroups(a, b) {
   const numericA = Number.parseInt(a, 10);
   const numericB = Number.parseInt(b, 10);
@@ -454,18 +552,47 @@ function compareYearGroups(a, b) {
 }
 
 function getMissedDetentionHistory(student) {
+  const activeDetention = student.activeDetention;
+  if (!activeDetention || activeDetention.status !== "open") {
+    return [];
+  }
+
   const history = Array.isArray(student.detentionHistory)
-    ? student.detentionHistory.filter(entry =>
-      entry.outcome === "missed_while_present" || entry.outcome === "absent_from_school"
-    )
+    ? student.detentionHistory
     : [];
+  const mostRecentServedIndex = findMostRecentServedDetentionIndex(history);
+  const unresolvedHistory = history.slice(mostRecentServedIndex + 1);
+  const activeLateDate = activeDetention.createdFromLateDate || "";
+  const skippedDetentions = unresolvedHistory.filter(entry => {
+    if (entry.outcome !== "missed_while_present") {
+      return false;
+    }
+
+    if (activeLateDate && entry.lateDate && entry.lateDate !== activeLateDate) {
+      return false;
+    }
+
+    return true;
+  });
 
   const pendingOrDerivedEntry = buildCurrentMissedDetentionEntry(student);
-  const extraEntries = pendingOrDerivedEntry ? [pendingOrDerivedEntry] : [];
+  const extraEntries = pendingOrDerivedEntry?.outcome === "missed_while_present"
+    ? [pendingOrDerivedEntry]
+    : [];
 
-  return [...history, ...extraEntries].sort((a, b) =>
+  return [...skippedDetentions, ...extraEntries].sort((a, b) =>
     String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
   );
+}
+
+function findMostRecentServedDetentionIndex(history) {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    if (history[index]?.outcome === "served") {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function buildPendingAttendanceEntry(student) {
