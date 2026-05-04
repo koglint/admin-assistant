@@ -165,7 +165,7 @@ function updateAnalytics() {
   const filteredStudents = allStudents.filter(student => !selectedYear || student.yearGroup === selectedYear);
   analytics = buildAnalytics(filteredStudents, startDate, endDate);
   renderAnalytics(analytics);
-  statusText.textContent = `${filteredStudents.length} student record(s) analysed from ${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}.`;
+  statusText.textContent = `${filteredStudents.length} student record(s) analysed from ${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}. Saturdays and Sundays are excluded.`;
 }
 
 function buildAnalytics(students, startDate, endDate) {
@@ -175,7 +175,7 @@ function buildAnalytics(students, startDate, endDate) {
 
   students.forEach(student => {
     student.lateArrivals.forEach(arrival => {
-      if (!arrival?.date || !dateInRange(arrival.date, startDate, endDate)) return;
+      if (!arrival?.date || !dateInAnalysisRange(arrival.date, startDate, endDate)) return;
       const day = ensureDailyRow(dailyMap, arrival.date);
       day.lateArrivals += 1;
       lateArrivalRows.push({
@@ -204,7 +204,7 @@ function buildAnalytics(students, startDate, endDate) {
   });
 
   const dailyRows = [...dailyMap.values()]
-    .filter(row => dateInRange(row.date, startDate, endDate))
+    .filter(row => dateInAnalysisRange(row.date, startDate, endDate))
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(row => ({
       ...row,
@@ -235,7 +235,9 @@ function buildDailyMap(startDate, endDate) {
   const end = parseDate(endDate);
 
   while (cursor <= end) {
-    rows.set(toDateString(cursor), createDailyRow(toDateString(cursor)));
+    if (isWeekday(cursor)) {
+      rows.set(toDateString(cursor), createDailyRow(toDateString(cursor)));
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
 
@@ -279,7 +281,7 @@ function buildStudentAttempts(student, startDate, endDate) {
     const hadPreviousMiss = lateDate ? (missedByLateDate.get(lateDate) || 0) > 0 : false;
     const sourceType = hadPreviousMiss ? "rolledOver" : "newAttempts";
 
-    if (dateInRange(scheduledForDate, startDate, endDate)) {
+    if (dateInAnalysisRange(scheduledForDate, startDate, endDate)) {
       attempts.push(buildAttemptRow(student, {
         scheduledForDate,
         lateDate,
@@ -296,7 +298,7 @@ function buildStudentAttempts(student, startDate, endDate) {
   });
 
   const active = student.activeDetention;
-  if (active?.status === "open" && active.scheduledForDate && dateInRange(active.scheduledForDate, startDate, endDate)) {
+  if (active?.status === "open" && active.scheduledForDate && dateInAnalysisRange(active.scheduledForDate, startDate, endDate)) {
     const lateDate = active.createdFromLateDate || "";
     const missedCount = Number(active.missedWhilePresentCount || 0);
     attempts.push(buildAttemptRow(student, {
@@ -478,15 +480,8 @@ function renderCharts(data) {
     { key: "served", label: "Served", color: "#1f9d55" },
     { key: "missedWhilePresent", label: "Missed", color: "#c0392b" },
     { key: "absentFromSchool", label: "Absent", color: "#f39c12" },
-    { key: "openOrPending", label: "Open", color: "#5f6f82" }
+    { key: "openOrPending", label: "Scheduled", color: "#5f6f82" }
   ], row => formatShortDate(row.date));
-
-  drawGroupedBarChart("source-chart", data.dailyRows, [
-    { key: "newAttempts", label: "New", color: "#2980b9" },
-    { key: "rolledOver", label: "Rollover", color: "#8e5a2a" }
-  ], row => formatShortDate(row.date));
-
-  drawSimpleBarChart("repeat-chart", data.repeatBuckets, "count", row => row.label, "#34495e");
 
   drawStackedBarChart("year-chart", data.yearRows, [
     { key: "served", label: "Served", color: "#1f9d55" },
@@ -629,7 +624,7 @@ function exportPdf() {
 
   doc.autoTable({
     startY: 30,
-    head: [["Date", "Scheduled", "Served", "Missed Present", "Absent", "Open/Pending", "Late Arrivals", "New", "Rollover", "Completion"]],
+    head: [["Date", "Scheduled", "Served", "Missed Present", "Absent", "Scheduled/Pending", "Late Arrivals", "New", "Rollover", "Completion"]],
     body: analytics.dailyRows.map(row => [
       row.date,
       row.scheduled,
@@ -665,7 +660,7 @@ function exportExcel() {
     Served: row.served,
     "Missed While Present": row.missedWhilePresent,
     "Absent From School": row.absentFromSchool,
-    "Open Or Pending": row.openOrPending,
+    "Scheduled Or Pending": row.openOrPending,
     "Late Arrivals": row.lateArrivals,
     "New Attempts": row.newAttempts,
     "Rolled Over": row.rolledOver,
@@ -737,6 +732,10 @@ function normalizeOutcome(outcome) {
   return outcome === "served" ? "served" : "open";
 }
 
+function dateInAnalysisRange(date, startDate, endDate) {
+  return dateInRange(date, startDate, endDate) && isWeekday(parseDate(date));
+}
+
 function dateInRange(date, startDate, endDate) {
   return date >= startDate && date <= endDate;
 }
@@ -748,6 +747,11 @@ function parseDate(dateString) {
 
 function toDateString(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function isWeekday(date) {
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
 }
 
 function getLocalDateString() {
