@@ -811,3 +811,116 @@ td:nth-child(7) {
     font-size: 14px;
   }
 }
+
+/* Detention analytics page styles are scoped so existing pages keep their layout. */
+.analytics-page .analytics-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.analytics-page .analytics-data-note {
+  border: 1px solid #f1d3a4;
+  border-radius: 12px;
+  background: #fff8ed;
+  color: #7a4a10;
+  padding: 14px 16px;
+  margin-top: 0;
+}
+
+.analytics-page .analytics-controls .analytics-actions {
+  min-width: 260px;
+}
+
+.analytics-status {
+  margin: 10px 0 16px;
+  font-weight: 600;
+}
+
+.analytics-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.analytics-stat-card,
+.analytics-card {
+  background: white;
+  border: 1px solid #dfe8f1;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(31, 45, 61, 0.08);
+}
+
+.analytics-stat-card {
+  padding: 18px;
+  border-top: 4px solid #1f6aa5;
+}
+
+.analytics-stat-card span {
+  display: block;
+  color: #627284;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.analytics-stat-card strong {
+  display: block;
+  color: #22313f;
+  font-size: 34px;
+  line-height: 1.1;
+  margin-top: 8px;
+}
+
+.analytics-stat-card p {
+  color: #627284;
+  margin-top: 8px;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.analytics-chart-card {
+  min-width: 0;
+  padding: 18px;
+}
+
+.analytics-card-heading {
+  margin-bottom: 10px;
+}
+
+.analytics-card-heading h2,
+.analytics-table-card h2 {
+  margin: 0 0 4px;
+}
+
+.analytics-card-heading p {
+  color: #627284;
+}
+
+.analytics-chart-card canvas {
+  display: block;
+  width: 100%;
+}
+
+.analytics-table-card {
+  margin-bottom: 20px;
+}
+
+.analytics-table-card h2 {
+  padding: 14px 0 10px;
+}
+
+@media (max-width: 900px) {
+  .analytics-page .analytics-hero,
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
