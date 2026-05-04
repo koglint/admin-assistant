@@ -208,6 +208,7 @@ function buildAnalytics(students, startDate, endDate) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(row => ({
       ...row,
+      unjustifiedAbsencesFromDetention: Math.max(0, row.scheduled - row.served),
       completionRate: row.scheduled ? row.served / row.scheduled : 0,
       avoidanceRate: row.scheduled ? row.missedWhilePresent / row.scheduled : 0
     }));
@@ -397,12 +398,14 @@ function buildTotals(dailyRows, studentRows) {
   const missedWhilePresent = sum(dailyRows, "missedWhilePresent");
   const absentFromSchool = sum(dailyRows, "absentFromSchool");
   const openOrPending = sum(dailyRows, "openOrPending");
+  const unjustifiedAbsencesFromDetention = sum(dailyRows, "unjustifiedAbsencesFromDetention");
   const uniqueStudents = studentRows.filter(row => row.scheduled > 0).length;
   const repeatStudents = studentRows.filter(row => row.scheduled > 1).length;
 
   return {
     scheduled,
     served,
+    unjustifiedAbsencesFromDetention,
     missedWhilePresent,
     absentFromSchool,
     openOrPending,
@@ -412,7 +415,7 @@ function buildTotals(dailyRows, studentRows) {
     uniqueStudents,
     repeatStudents,
     completionRate: scheduled ? served / scheduled : 0,
-    avoidanceRate: scheduled ? missedWhilePresent / scheduled : 0
+    avoidanceRate: scheduled ? unjustifiedAbsencesFromDetention / scheduled : 0
   };
 }
 
@@ -427,7 +430,7 @@ function renderSummaryCards(totals) {
   const cards = [
     ["Scheduled", totals.scheduled, "Total detention attempts in range"],
     ["Served", totals.served, `${formatPercent(totals.completionRate)} completion rate`],
-    ["Missed", totals.missedWhilePresent, `${formatPercent(totals.avoidanceRate)} missed while present`],
+    ["Unjustified Absences", totals.unjustifiedAbsencesFromDetention, `${formatPercent(totals.avoidanceRate)} not served`],
     ["Late Arrivals", totals.lateArrivals, "Unjustified roll-call late records"],
     ["Unique Students", totals.uniqueStudents, `${totals.repeatStudents} repeat student(s)`],
     ["Rolled Over", totals.rolledOver, "Attempts after a previous missed detention"]
@@ -448,15 +451,10 @@ function renderDailyTable(rows) {
       <td>${formatDisplayDate(row.date)}</td>
       <td>${row.scheduled}</td>
       <td>${row.served}</td>
-      <td>${row.missedWhilePresent}</td>
-      <td>${row.absentFromSchool}</td>
-      <td>${row.openOrPending}</td>
-      <td>${row.lateArrivals}</td>
-      <td>${row.newAttempts}</td>
-      <td>${row.rolledOver}</td>
+      <td>${row.unjustifiedAbsencesFromDetention}</td>
       <td>${formatPercent(row.completionRate)}</td>
     </tr>
-  `).join("") || '<tr><td colspan="10">No detention activity found for this range.</td></tr>';
+  `).join("") || '<tr><td colspan="5">No detention activity found for this range.</td></tr>';
 }
 
 function renderStudentTable(rows) {
@@ -478,9 +476,7 @@ function renderStudentTable(rows) {
 function renderCharts(data) {
   drawStackedBarChart("daily-outcomes-chart", data.dailyRows, [
     { key: "served", label: "Served", color: "#1f9d55" },
-    { key: "missedWhilePresent", label: "Missed", color: "#c0392b" },
-    { key: "absentFromSchool", label: "Absent", color: "#f39c12" },
-    { key: "openOrPending", label: "Scheduled", color: "#5f6f82" }
+    { key: "unjustifiedAbsencesFromDetention", label: "Unjustified Absence", color: "#c0392b" }
   ], row => formatShortDate(row.date));
 
   drawStackedBarChart("year-chart", data.yearRows, [
@@ -620,21 +616,16 @@ function exportPdf() {
   const doc = new jsPDF({ orientation: "landscape" });
   const title = `Detention Analytics (${analytics.startDate || ""} to ${analytics.endDate || ""})`;
   doc.text(title, 14, 15);
-  doc.text(`Scheduled: ${analytics.totals.scheduled} | Served: ${analytics.totals.served} | Missed: ${analytics.totals.missedWhilePresent} | Unique students: ${analytics.totals.uniqueStudents}`, 14, 23);
+  doc.text(`Scheduled: ${analytics.totals.scheduled} | Served: ${analytics.totals.served} | Unjustified absences: ${analytics.totals.unjustifiedAbsencesFromDetention} | Unique students: ${analytics.totals.uniqueStudents}`, 14, 23);
 
   doc.autoTable({
     startY: 30,
-    head: [["Date", "Scheduled", "Served", "Missed Present", "Absent", "Scheduled/Pending", "Late Arrivals", "New", "Rollover", "Completion"]],
+    head: [["Date", "Scheduled", "Served", "Unjustified Absences from Detention", "Completion"]],
     body: analytics.dailyRows.map(row => [
       row.date,
       row.scheduled,
       row.served,
-      row.missedWhilePresent,
-      row.absentFromSchool,
-      row.openOrPending,
-      row.lateArrivals,
-      row.newAttempts,
-      row.rolledOver,
+      row.unjustifiedAbsencesFromDetention,
       formatPercent(row.completionRate)
     ]),
     styles: { fontSize: 8 }
@@ -658,12 +649,7 @@ function exportExcel() {
     Date: row.date,
     Scheduled: row.scheduled,
     Served: row.served,
-    "Missed While Present": row.missedWhilePresent,
-    "Absent From School": row.absentFromSchool,
-    "Scheduled Or Pending": row.openOrPending,
-    "Late Arrivals": row.lateArrivals,
-    "New Attempts": row.newAttempts,
-    "Rolled Over": row.rolledOver,
+    "Unjustified Absences from Detention": row.unjustifiedAbsencesFromDetention,
     "Completion Rate": formatPercent(row.completionRate)
   }))), "Daily Summary");
 
@@ -709,6 +695,7 @@ function buildEmptyAnalytics() {
     totals: {
       scheduled: 0,
       served: 0,
+      unjustifiedAbsencesFromDetention: 0,
       missedWhilePresent: 0,
       absentFromSchool: 0,
       openOrPending: 0,
