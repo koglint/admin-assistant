@@ -25,6 +25,7 @@ const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const exportFormat = document.getElementById("export-format");
 const generateSummaryBtn = document.getElementById("generate-summary-report");
+const generateAllStudentsBtn = document.getElementById("generate-all-students-report");
 const generateMissedDetentionEventsBtn = document.getElementById("generate-missed-detention-events-report");
 const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
 const generateMissedDetentionsBtn = document.getElementById("generate-missed-detentions-report");
@@ -96,6 +97,10 @@ studentPicker.addEventListener("change", (e) => {
 
 generateSummaryBtn.addEventListener("click", () => {
   exportSummaryReport();
+});
+
+generateAllStudentsBtn.addEventListener("click", () => {
+  exportAllStudentsReport();
 });
 
 generateMissedDetentionEventsBtn.addEventListener("click", async () => {
@@ -226,6 +231,61 @@ function exportSummaryReport() {
   const sheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Summary");
   XLSX.writeFile(workbook, `attendance_summary_${date}.xlsx`);
+}
+
+function exportAllStudentsReport() {
+  const date = getFormattedDate();
+  const rows = allStudents.map(student => ({
+    studentId: student.studentId,
+    surname: student.surname,
+    givenName: student.givenName,
+    yearGroup: student.yearGroup || '',
+    rollClass: student.rollClass,
+    lateCount: student.lateCount,
+    unjustifiedLateArrivalDates: getUnjustifiedLateArrivalDates(student).join(', '),
+    mostRecentCompletedDetention: getMostRecentCompletedDetentionDate(student) || '',
+    currentActiveDetention: student.activeDetention?.scheduledForDate || '',
+    escalated: student.escalated ? 'Yes' : 'No',
+    escalationReasons: formatReasons(student.escalationReasons)
+  }));
+
+  if (rows.length === 0) {
+    alert("No student records were found.");
+    return;
+  }
+
+  if (exportFormat.value === "pdf") {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text("All Students Register", 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [["Student ID", "Surname", "Given Name", "Year", "Roll Class", "Late Count", "Unjustified Late Arrival Dates", "Most Recent Completed Detention", "Active Detention", "Escalated"]],
+      body: rows.map(row => [
+        row.studentId,
+        row.surname,
+        row.givenName,
+        row.yearGroup,
+        row.rollClass,
+        row.lateCount,
+        row.unjustifiedLateArrivalDates,
+        row.mostRecentCompletedDetention,
+        row.currentActiveDetention,
+        row.escalated
+      ]),
+      styles: { fontSize: 7 },
+      columnStyles: {
+        6: { cellWidth: 58 },
+        7: { cellWidth: 28 }
+      }
+    });
+    doc.save(`all_students_register_${date}.pdf`);
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "All Students");
+  XLSX.writeFile(workbook, `all_students_register_${date}.xlsx`);
 }
 
 async function exportMissedDetentionEventsReport() {
@@ -474,6 +534,24 @@ function getMissedWhilePresentCount(student) {
     : 0;
 
   return Math.max(historyCount, student.activeDetention?.missedWhilePresentCount || 0);
+}
+
+function getUnjustifiedLateArrivalDates(student) {
+  return [...student.lateArrivals]
+    .filter(arrival => arrival && arrival.justified !== true)
+    .map(arrival => arrival.date || '')
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function getMostRecentCompletedDetentionDate(student) {
+  const servedDates = [...student.detentionHistory]
+    .filter(entry => entry?.outcome === "served")
+    .map(entry => entry.date || entry.scheduledForDate || '')
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a));
+
+  return servedDates[0] || '';
 }
 
 function buildMissedDetentionRows() {
