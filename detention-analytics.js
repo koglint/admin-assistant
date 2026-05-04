@@ -358,7 +358,13 @@ function buildYearRows(attempts) {
   attempts.forEach(attempt => {
     const year = attempt.yearGroup || "Unknown";
     if (!rows.has(year)) {
-      rows.set(year, { yearGroup: year, scheduled: 0, served: 0, missedWhilePresent: 0 });
+      rows.set(year, {
+        yearGroup: year,
+        scheduled: 0,
+        served: 0,
+        unserved: 0,
+        missedWhilePresent: 0
+      });
     }
     const row = rows.get(year);
     row.scheduled += 1;
@@ -366,7 +372,12 @@ function buildYearRows(attempts) {
     if (attempt.outcome === "missed_while_present") row.missedWhilePresent += 1;
   });
 
-  return [...rows.values()].sort((a, b) => compareYearGroups(a.yearGroup, b.yearGroup));
+  return [...rows.values()]
+    .map(row => ({
+      ...row,
+      unserved: Math.max(0, row.scheduled - row.served)
+    }))
+    .sort((a, b) => compareYearGroups(a.yearGroup, b.yearGroup));
 }
 
 function buildRepeatBuckets(studentRows) {
@@ -477,10 +488,9 @@ function renderCharts(data) {
 
   drawSimpleBarChart("repeat-chart", data.repeatBuckets, "count", row => row.label, "#34495e");
 
-  drawGroupedBarChart("year-chart", data.yearRows, [
-    { key: "scheduled", label: "Scheduled", color: "#2980b9" },
+  drawStackedBarChart("year-chart", data.yearRows, [
     { key: "served", label: "Served", color: "#1f9d55" },
-    { key: "missedWhilePresent", label: "Missed", color: "#c0392b" }
+    { key: "unserved", label: "Unserved", color: "#c0392b" }
   ], row => row.yearGroup);
 }
 
@@ -678,6 +688,7 @@ function exportExcel() {
     Year: row.yearGroup,
     Scheduled: row.scheduled,
     Served: row.served,
+    Unserved: row.unserved,
     "Missed While Present": row.missedWhilePresent
   }))), "Year Groups");
 
