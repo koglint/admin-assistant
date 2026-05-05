@@ -455,6 +455,11 @@ function compareStudents(a, b, key, ascending) {
 
 function buildUploadStatus(data) {
   const reportDate = data.reportDate ? `Processed report for ${data.reportDate}. ` : "Processed upload. ";
+  const pendingDates = Array.isArray(data.pendingDetentionCheckDates)
+    ? data.pendingDetentionCheckDates
+        .filter((item) => item && item.date && item.count)
+        .map((item) => `${item.date} (${item.count} check${item.count === 1 ? "" : "s"})`)
+    : [];
   const latestObserved = data.latestObservedTime
     ? `Latest time found in the report: ${data.latestObservedTime}. `
     : "";
@@ -465,7 +470,7 @@ function buildUploadStatus(data) {
     ? `${data.detentionChecksCompleted} pending detention attendance check(s) were completed. `
     : "";
   const checksWaiting = data.pendingDetentionChecks
-    ? `${data.pendingDetentionChecks} detention attendance check(s) are still waiting for fuller attendance data for that date.`
+    ? `${data.pendingDetentionChecks} detention attendance check(s) are still waiting for fuller attendance data for ${pendingDates.length ? pendingDates.join(", ") : "that date"}.`
     : "";
 
   return `${reportDate}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${checksCompleted}${latestObserved}${coverage}${checksWaiting}`.trim();
