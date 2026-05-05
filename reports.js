@@ -531,11 +531,11 @@ function getLocalDateString() {
 }
 
 function getMissedWhilePresentCount(student) {
-  const activeDetention = student.activeDetention;
-  if (!activeDetention || activeDetention.status !== "open") {
+  if (!hasOutstandingDetentionObligation(student)) {
     return 0;
   }
 
+  const activeDetention = student.activeDetention;
   const historyCount = Array.isArray(student.detentionHistory)
     ? getMissedDetentionHistory(student).length
     : 0;
@@ -559,6 +559,29 @@ function getMostRecentCompletedDetentionDate(student) {
     .sort((a, b) => b.localeCompare(a));
 
   return servedDates[0] || '';
+}
+
+function getLatestLateArrivalDate(student) {
+  return [...student.lateArrivals]
+    .filter(arrival => arrival && arrival.justified !== true)
+    .map(arrival => arrival.date || '')
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0] || '';
+}
+
+function hasOutstandingDetentionObligation(student) {
+  const activeDetention = student.activeDetention;
+  if (!activeDetention || activeDetention.status !== "open") {
+    return false;
+  }
+
+  const latestLateDate = getLatestLateArrivalDate(student);
+  const mostRecentServedDate = getMostRecentCompletedDetentionDate(student);
+  if (latestLateDate && mostRecentServedDate && mostRecentServedDate >= latestLateDate) {
+    return false;
+  }
+
+  return true;
 }
 
 function buildMissedDetentionRows() {
@@ -637,11 +660,11 @@ function compareYearGroups(a, b) {
 }
 
 function getMissedDetentionHistory(student) {
-  const activeDetention = student.activeDetention;
-  if (!activeDetention || activeDetention.status !== "open") {
+  if (!hasOutstandingDetentionObligation(student)) {
     return [];
   }
 
+  const activeDetention = student.activeDetention;
   const history = Array.isArray(student.detentionHistory)
     ? student.detentionHistory
     : [];
