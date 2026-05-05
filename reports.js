@@ -111,16 +111,16 @@ generateMissedDetentionPdfBtn.addEventListener("click", async () => {
   await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
 });
 
-generateMissedDetentionsBtn.addEventListener("click", () => {
-  exportEscalationSubsetReport("missed_detention_twice");
+generateMissedDetentionsBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(generateMissedDetentionsBtn, "Generating...", () => exportEscalationSubsetReport("missed_detention_twice"));
 });
 
-generateLateCountBtn.addEventListener("click", () => {
-  exportEscalationSubsetReport("late_count_over_five");
+generateLateCountBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(generateLateCountBtn, "Generating...", () => exportEscalationSubsetReport("late_count_over_five"));
 });
 
-generateCombinedEscalationBtn.addEventListener("click", () => {
-  exportEscalationSubsetReport("combined");
+generateCombinedEscalationBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(generateCombinedEscalationBtn, "Generating...", () => exportEscalationSubsetReport("combined"));
 });
 
 generateHistoryBtn.addEventListener("click", () => {
@@ -459,7 +459,9 @@ function exportHistoryReport() {
   XLSX.writeFile(workbook, `student_history_${date}.xlsx`);
 }
 
-function exportEscalationSubsetReport(reportType) {
+async function exportEscalationSubsetReport(reportType) {
+  await hydrateAttendanceDaysForMissedDetentionReport();
+
   const date = getFormattedDate();
   const rows = allStudents
     .filter(student => matchesEscalationReport(student, reportType))
@@ -487,7 +489,7 @@ function exportEscalationSubsetReport(reportType) {
   const filename = reportType === "missed_detention_twice"
     ? `missed_two_detentions_${date}.xlsx`
     : reportType === "late_count_over_five"
-      ? `late_more_than_five_${date}.xlsx`
+      ? `late_five_or_more_${date}.xlsx`
       : `combined_escalation_${date}.xlsx`;
 
   XLSX.writeFile(workbook, filename);
@@ -529,11 +531,16 @@ function getLocalDateString() {
 }
 
 function getMissedWhilePresentCount(student) {
+  const activeDetention = student.activeDetention;
+  if (!activeDetention || activeDetention.status !== "open") {
+    return 0;
+  }
+
   const historyCount = Array.isArray(student.detentionHistory)
-    ? student.detentionHistory.filter(entry => entry.outcome === "missed_while_present").length
+    ? getMissedDetentionHistory(student).length
     : 0;
 
-  return Math.max(historyCount, student.activeDetention?.missedWhilePresentCount || 0);
+  return Math.max(historyCount, activeDetention.missedWhilePresentCount || 0);
 }
 
 function getUnjustifiedLateArrivalDates(student) {
@@ -678,11 +685,12 @@ function buildPendingAttendanceEntry(student) {
   const attendanceDay = attendanceDaysByKey.get(`${student.studentId}_${pendingDate}`);
 
   if (attendanceDay?.hasFullDayCoverage) {
+    const presentDuringDetention = attendanceDay.presentDuringDetention ?? attendanceDay.presentAtSchool;
     return {
       date: pendingDate,
       lateDate: student.activeDetention?.createdFromLateDate || "",
       scheduledForDate: student.activeDetention?.scheduledForDate || pendingDate,
-      outcome: attendanceDay.presentAtSchool ? "missed_while_present" : "absent_from_school"
+      outcome: presentDuringDetention !== false ? "missed_while_present" : "absent_from_school"
     };
   }
 
@@ -754,8 +762,8 @@ function formatWeekday(dateText) {
 }
 
 function matchesEscalationReport(student, reportType) {
-  const missedTwice = getMissedWhilePresentCount(student) >= 2 || student.escalationReasons.includes("missed_detention_twice");
-  const lateOverFive = student.lateCount > 5 || student.escalationReasons.includes("late_count_over_five");
+  const missedTwice = getMissedWhilePresentCount(student) >= 2;
+  const lateOverFive = student.lateCount >= 5 || student.escalationReasons.includes("late_count_over_five");
 
   if (reportType === "missed_detention_twice") return missedTwice;
   if (reportType === "late_count_over_five") return lateOverFive;

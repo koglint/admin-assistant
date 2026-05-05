@@ -690,15 +690,16 @@ async function markMissedDetentions(missedStudents, rollDate) {
 
         if (hasAttendanceDecision) {
           const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
-          const presentAtSchool = attendanceDay.presentAtSchool !== false;
+          const presentDuringDetention = attendanceDay.presentDuringDetention ?? attendanceDay.presentAtSchool;
+          const missedWhilePresent = presentDuringDetention !== false;
           const currentMissedCount = Number(activeDetention.missedWhilePresentCount || 0);
-          const nextMissedCount = presentAtSchool ? currentMissedCount + 1 : currentMissedCount;
+          const nextMissedCount = missedWhilePresent ? currentMissedCount + 1 : currentMissedCount;
 
           history.push({
             date: rollDate,
             lateDate: activeDetention.createdFromLateDate || "",
             scheduledForDate: activeDetention.scheduledForDate || rollDate,
-            outcome: presentAtSchool ? "missed_while_present" : "absent_from_school"
+            outcome: missedWhilePresent ? "missed_while_present" : "absent_from_school"
           });
 
           transaction.update(ref, {
@@ -714,7 +715,7 @@ async function markMissedDetentions(missedStudents, rollDate) {
             detentionHistory: history,
             updatedAt: serverTimestamp(),
             updatedBy: currentUserDescriptor,
-            lastAction: presentAtSchool
+            lastAction: missedWhilePresent
               ? "detention_missed_while_present_resolved_from_attendance_record"
               : "detention_absence_resolved_from_attendance_record",
             lastRollMark: "absent",

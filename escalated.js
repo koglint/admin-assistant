@@ -314,7 +314,7 @@ function formatReasons(reasons) {
       case 'manual_escalation':
         return 'Manual';
       case 'late_count_over_five':
-        return 'Late Count > 5';
+        return 'Late Count >= 5';
       case 'missed_detention_twice':
         return 'Missed Detention Twice';
       default:
