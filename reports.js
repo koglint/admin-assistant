@@ -604,7 +604,9 @@ function getEscalationCriteria(student) {
   const lateCount = getLateArrivalCount(student);
   const missedOpportunityCount = getEscalationMissedOpportunityCount(student);
   const reasons = Array.isArray(student.escalationReasons) ? student.escalationReasons : [];
-  const missedTwice = missedOpportunityCount >= 2 || reasons.includes("missed_detention_twice");
+  const hasOutstandingDetention = hasOutstandingDetentionObligation(student);
+  const missedTwice = hasOutstandingDetention
+    && (missedOpportunityCount >= 2 || reasons.includes("missed_detention_twice"));
   const lateOverFive = lateCount >= 5 || reasons.includes("late_count_over_five");
   const labels = [];
 
@@ -627,7 +629,7 @@ function getEscalationCriteria(student) {
 
 function getEscalationMissedOpportunityCount(student) {
   const activeDetention = student.activeDetention;
-  if (!activeDetention || activeDetention.status !== "open") {
+  if (!activeDetention || activeDetention.status !== "open" || !hasOutstandingDetentionObligation(student)) {
     return 0;
   }
 
