@@ -40,7 +40,7 @@ const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
 const YEAR_FILTER_OPTIONS = ["7", "8", "9", "10", "11", "12", "SRC"];
 
 let showEscalated = false;
-let hideResolved = false;
+let hideResolved = true;
 let sortKey = "yearGroup";
 let sortDirection = "asc";
 let detentionDataCache = [];
