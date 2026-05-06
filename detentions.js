@@ -31,6 +31,7 @@ const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 const searchInput = document.getElementById("detention-search");
 const sortButtons = document.querySelectorAll(".sort-btn");
+const sortableHeaders = document.querySelectorAll("#detention-table thead th[data-sort-key]");
 const yearFilterButtons = document.querySelectorAll(".year-filter-btn");
 const tableStats = document.getElementById("table-stats");
 const diagnosticsPanel = document.getElementById("diagnostics-panel");
@@ -41,6 +42,7 @@ const YEAR_FILTER_OPTIONS = ["7", "8", "9", "10", "11", "12", "SRC"];
 let showEscalated = false;
 let hideResolved = false;
 let sortKey = "yearGroup";
+let sortDirection = "asc";
 let detentionDataCache = [];
 let filteredDetentionData = [];
 const selectedStudentIds = new Set();
@@ -98,6 +100,7 @@ onAuthStateChanged(auth, async (user) => {
 
     await loadDetentionSummary();
     updateSortButtons();
+    updateSortableHeaders();
     updateYearFilterButtons();
     updateToggleButtons();
   } else {
@@ -128,11 +131,28 @@ searchInput.addEventListener("input", () => {
 
 sortButtons.forEach(button => {
   button.addEventListener("click", () => {
-    sortKey = button.dataset.sortKey || "surname";
-    updateSortButtons();
-    applyFiltersAndRender();
+    setSortKey(button.dataset.sortKey || "surname");
   });
 });
+
+sortableHeaders.forEach(header => {
+  header.addEventListener("click", () => {
+    setSortKey(header.dataset.sortKey || "surname");
+  });
+});
+
+function setSortKey(nextSortKey) {
+  if (sortKey === nextSortKey) {
+    sortDirection = sortDirection === "asc" ? "desc" : "asc";
+  } else {
+    sortKey = nextSortKey;
+    sortDirection = "asc";
+  }
+
+  updateSortButtons();
+  updateSortableHeaders();
+  applyFiltersAndRender();
+}
 
 yearFilterButtons.forEach(button => {
   button.addEventListener("click", () => {
@@ -395,8 +415,10 @@ function applyFiltersAndRender() {
 
 function compareStudents(a, b) {
   const key = sortKey;
-  const valA = a[key];
-  const valB = b[key];
+  const directionMultiplier = sortDirection === "desc" ? -1 : 1;
+  const valA = normalizeSortValue(a[key], key);
+  const valB = normalizeSortValue(b[key], key);
+  const fallbackCompare = compareStudentFallbacks(a, b, key);
 
   if (key === "yearGroup") {
     const numericA = Number.parseInt(valA, 10);
@@ -404,17 +426,41 @@ function compareStudents(a, b) {
     const bothNumeric = !Number.isNaN(numericA) && !Number.isNaN(numericB);
 
     if (bothNumeric && numericA !== numericB) {
-      return numericA - numericB;
+      return (numericA - numericB) * directionMultiplier;
     }
 
     const yearTextCompare = String(valA).localeCompare(String(valB));
-    if (yearTextCompare !== 0) return yearTextCompare;
-    return String(a.surname).localeCompare(String(b.surname)) || String(a.givenName).localeCompare(String(b.givenName));
+    if (yearTextCompare !== 0) return yearTextCompare * directionMultiplier;
+    return fallbackCompare * directionMultiplier;
+  }
+
+  if (typeof valA === "number" && typeof valB === "number" && valA !== valB) {
+    return (valA - valB) * directionMultiplier;
   }
 
   const primary = String(valA).localeCompare(String(valB));
-  if (primary !== 0) return primary;
+  if (primary !== 0) return primary * directionMultiplier;
 
+  return fallbackCompare * directionMultiplier;
+}
+
+function normalizeSortValue(value, key) {
+  if (["truancyCount", "detentionsServed"].includes(key)) {
+    return Number(value) || 0;
+  }
+
+  if (key === "truancyResolved") {
+    return value ? 1 : 0;
+  }
+
+  if (key === "latestDate") {
+    return value === "-" ? "" : String(value || "");
+  }
+
+  return value ?? "";
+}
+
+function compareStudentFallbacks(a, b, key) {
   if (key !== "surname") {
     const surnameFallback = String(a.surname).localeCompare(String(b.surname));
     if (surnameFallback !== 0) return surnameFallback;
@@ -484,6 +530,34 @@ function updateStats() {
 function updateSortButtons() {
   sortButtons.forEach(button => {
     button.classList.toggle("active", button.dataset.sortKey === sortKey);
+    const directionLabel = sortDirection === "asc" ? "ascending" : "descending";
+    button.setAttribute(
+      "aria-label",
+      button.dataset.sortKey === sortKey
+        ? `Sorted by ${button.textContent.trim()} ${directionLabel}`
+        : `Sort by ${button.textContent.trim()}`
+    );
+  });
+}
+
+function updateSortableHeaders() {
+  sortableHeaders.forEach(header => {
+    const isActive = header.dataset.sortKey === sortKey;
+    const directionLabel = sortDirection === "asc" ? "ascending" : "descending";
+    const button = header.querySelector(".table-sort-heading");
+
+    header.classList.toggle("sorted", isActive);
+    header.classList.toggle("sorted-desc", isActive && sortDirection === "desc");
+    header.setAttribute("aria-sort", isActive ? directionLabel : "none");
+
+    if (button) {
+      button.setAttribute(
+        "aria-label",
+        isActive
+          ? `Sorted by ${button.textContent.trim()} ${directionLabel}. Click to reverse.`
+          : `Sort by ${button.textContent.trim()}`
+      );
+    }
   });
 }
 

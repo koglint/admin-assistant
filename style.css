@@ -311,7 +311,8 @@ table {
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.08);
   padding: 4px 16px 16px;
-  overflow-x: auto;
+  max-height: 72vh;
+  overflow: auto;
 }
 
 th,
@@ -325,6 +326,53 @@ th {
   background-color: #ecf0f1;
   cursor: pointer;
   user-select: none;
+}
+
+#detention-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 #d4dde5;
+}
+
+#detention-table th:not([data-sort-key]) {
+  cursor: default;
+}
+
+#detention-table .table-sort-heading {
+  width: 100%;
+  padding: 0 18px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  text-align: center;
+  transition: none;
+}
+
+#detention-table .table-sort-heading:hover,
+#detention-table .table-sort-heading:focus-visible {
+  background: transparent;
+  color: #1f6aa5;
+  outline: none;
+}
+
+#detention-table th.sorted .table-sort-heading::after {
+  content: "▲";
+  position: absolute;
+  right: 0;
+  color: #1f6aa5;
+  font-size: 10px;
+  line-height: 1;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#detention-table th.sorted.sorted-desc .table-sort-heading::after {
+  content: "▼";
 }
 
 tr:hover {
