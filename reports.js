@@ -502,35 +502,199 @@ async function exportEscalationSubsetReport(reportType) {
 
   const date = getFormattedDate();
   const rows = allStudents
-    .filter(student => matchesEscalationReport(student, reportType))
-    .map(student => ({
-      surname: student.surname,
-      givenName: student.givenName,
-      yearGroup: student.yearGroup || '',
-      rollClass: student.rollClass,
-      lateCount: student.lateCount,
-      missedDetentionsWhilePresent: getMissedWhilePresentCount(student),
-      activeDetention: student.activeDetention?.scheduledForDate || '',
-      escalationReasons: formatReasons(student.escalationReasons)
-    }))
-    .sort((a, b) => a.surname.localeCompare(b.surname) || a.givenName.localeCompare(b.givenName));
+    .map(student => buildEscalationReportRow(student, reportType))
+    .filter(Boolean)
+    .sort((a, b) => a.Surname.localeCompare(b.Surname) || a["Given Name"].localeCompare(b["Given Name"]));
 
   if (rows.length === 0) {
     alert("No students matched that report.");
     return;
   }
 
+  const title = getEscalationReportTitle(reportType);
+  const filenamePrefix = getEscalationReportFilenamePrefix(reportType);
+
+  if (exportFormat.value === "pdf") {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text(title, 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [[
+        "Surname",
+        "Given Name",
+        "Year",
+        "Roll Class",
+        "Late Arrivals",
+        "Missed Opportunities",
+        "Active Detention",
+        "Matched Criteria",
+        "Escalation Reasons"
+      ]],
+      body: rows.map(row => [
+        row.Surname,
+        row["Given Name"],
+        row.Year,
+        row["Roll Class"],
+        row["Late Arrivals"],
+        row["Missed Detention Opportunities"],
+        row["Active Detention"],
+        row["Matched Criteria"],
+        row["Escalation Reasons"]
+      ]),
+      styles: { fontSize: 7 },
+      columnStyles: {
+        7: { cellWidth: 45 },
+        8: { cellWidth: 48 }
+      }
+    });
+    doc.save(`${filenamePrefix}_${date}.pdf`);
+    return;
+  }
+
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Escalation Report");
+  XLSX.writeFile(workbook, `${filenamePrefix}_${date}.xlsx`);
+}
 
-  const filename = reportType === "missed_detention_twice"
-    ? `missed_two_detentions_${date}.xlsx`
-    : reportType === "late_count_over_five"
-      ? `late_five_or_more_${date}.xlsx`
-      : `combined_escalation_${date}.xlsx`;
+function buildEscalationReportRow(student, reportType) {
+  const criteria = getEscalationCriteria(student);
+  if (!matchesEscalationReport(criteria, reportType)) {
+    return null;
+  }
 
-  XLSX.writeFile(workbook, filename);
+  return {
+    Surname: student.surname,
+    "Given Name": student.givenName,
+    Year: student.yearGroup || '',
+    "Roll Class": student.rollClass,
+    "Late Arrivals": criteria.lateCount,
+    "Missed Detention Opportunities": criteria.missedOpportunityCount,
+    "Active Detention": student.activeDetention?.scheduledForDate || '',
+    "Matched Criteria": criteria.labels.join(', '),
+    "Escalation Reasons": formatReasons(student.escalationReasons)
+  };
+}
+
+function getEscalationReportTitle(reportType) {
+  if (reportType === "missed_detention_twice") {
+    return "Two or More Missed Detention Opportunities";
+  }
+
+  if (reportType === "late_count_over_five") {
+    return "Five or More Late Arrivals";
+  }
+
+  return "Combined Escalation Report";
+}
+
+function getEscalationReportFilenamePrefix(reportType) {
+  if (reportType === "missed_detention_twice") {
+    return "missed_two_detentions";
+  }
+
+  if (reportType === "late_count_over_five") {
+    return "late_five_or_more";
+  }
+
+  return "combined_escalation";
+}
+
+function getEscalationCriteria(student) {
+  const lateCount = getLateArrivalCount(student);
+  const missedOpportunityCount = getEscalationMissedOpportunityCount(student);
+  const reasons = Array.isArray(student.escalationReasons) ? student.escalationReasons : [];
+  const missedTwice = missedOpportunityCount >= 2 || reasons.includes("missed_detention_twice");
+  const lateOverFive = lateCount >= 5 || reasons.includes("late_count_over_five");
+  const labels = [];
+
+  if (missedTwice) {
+    labels.push("Two or more missed detention opportunities");
+  }
+
+  if (lateOverFive) {
+    labels.push("Five or more late arrivals");
+  }
+
+  return {
+    missedTwice,
+    lateOverFive,
+    labels,
+    lateCount: lateOverFive ? Math.max(lateCount, 5) : lateCount,
+    missedOpportunityCount: missedTwice ? Math.max(missedOpportunityCount, 2) : missedOpportunityCount
+  };
+}
+
+function getEscalationMissedOpportunityCount(student) {
+  const activeDetention = student.activeDetention;
+  if (!activeDetention || activeDetention.status !== "open") {
+    return 0;
+  }
+
+  const activeCount = activeDetention.missedWhilePresentCount || 0;
+  const unresolvedRecordedMisses = getUnresolvedMissedOpportunityHistory(student).length;
+  const pendingMiss = activeDetention.pendingAttendanceCheckDate ? 1 : 0;
+  const elapsedScheduledOpportunities = countSchoolDaysBeforeToday(activeDetention.scheduledForDate);
+  const recordedMisses = Math.max(activeCount, unresolvedRecordedMisses);
+  const unrecordedScheduledMisses = Math.max(elapsedScheduledOpportunities, pendingMiss);
+
+  return recordedMisses + unrecordedScheduledMisses;
+}
+
+function getUnresolvedMissedOpportunityHistory(student) {
+  const activeDetention = student.activeDetention;
+  const history = Array.isArray(student.detentionHistory)
+    ? student.detentionHistory
+    : [];
+  const mostRecentServedIndex = findMostRecentServedDetentionIndex(history);
+  const unresolvedHistory = history.slice(mostRecentServedIndex + 1);
+  const activeLateDate = activeDetention?.createdFromLateDate || "";
+
+  return unresolvedHistory.filter(entry => {
+    if (!["missed_while_present", "absent_from_school", "pending_attendance_check"].includes(entry?.outcome)) {
+      return false;
+    }
+
+    if (activeLateDate && entry.lateDate && entry.lateDate !== activeLateDate) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function countSchoolDaysBeforeToday(startDateText) {
+  const startDate = parseLocalDate(startDateText);
+  if (!startDate) return 0;
+
+  const today = parseLocalDate(getLocalDateString());
+  if (!today) return 0;
+
+  let count = 0;
+  const cursor = new Date(startDate);
+  while (cursor < today) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      count += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+}
+
+function parseLocalDate(dateText) {
+  const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+function matchesEscalationReport(criteria, reportType) {
+  if (reportType === "missed_detention_twice") return criteria.missedTwice;
+  if (reportType === "late_count_over_five") return criteria.lateOverFive;
+  return criteria.missedTwice || criteria.lateOverFive;
 }
 
 function resolveHistorySelection() {
@@ -871,15 +1035,6 @@ function formatWeekday(dateText) {
   const [, year, month, day] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   return date.toLocaleDateString('en-AU', { weekday: 'long' });
-}
-
-function matchesEscalationReport(student, reportType) {
-  const missedTwice = getMissedWhilePresentCount(student) >= 2;
-  const lateOverFive = student.lateCount >= 5 || student.escalationReasons.includes("late_count_over_five");
-
-  if (reportType === "missed_detention_twice") return missedTwice;
-  if (reportType === "late_count_over_five") return lateOverFive;
-  return missedTwice || lateOverFive;
 }
 
 function getYearGroup(rollClass) {
