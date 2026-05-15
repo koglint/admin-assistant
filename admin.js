@@ -199,7 +199,12 @@ confirmPurgeBtn.addEventListener("click", async () => {
       return;
     }
 
-    setPurgeStatus(`Purge complete. Deleted ${data.deleted} student record(s).`, false);
+    const collectionSummary = data.deletedByCollection
+      ? Object.entries(data.deletedByCollection)
+          .map(([collectionName, count]) => `${collectionName}: ${count}`)
+          .join(", ")
+      : `${data.deleted} document(s)`;
+    setPurgeStatus(`Purge complete. Deleted ${data.deleted} document(s). ${collectionSummary}`, false);
     purgeConfirmation.classList.add("hidden");
     deleteConfirmInput.value = "";
     passwordInput.value = "";

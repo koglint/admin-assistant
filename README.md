@@ -531,7 +531,7 @@ What it does:
 - Requires normal Google sign-in first.
 - Only allows approved admin usernames from `admin.js` and the backend to sign in with either `@det.nsw.edu.au` or `@education.nsw.gov.au`.
 - Requires a second admin password, but the password itself is checked on the Render backend rather than stored in frontend code.
-- Exposes a purge action that deletes every student document in the `students` Firestore collection through a backend endpoint.
+- Exposes a purge action that deletes every document in the `students`, `attendance_days`, and `uploadTracking` Firestore collections through a backend endpoint.
 - Uses a second confirmation step where the user must type `DELETE`.
 - Sends the user’s Firebase ID token to the backend so the server can verify that the user is logged in before purging.
 
