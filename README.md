@@ -31,9 +31,12 @@ The upload goes to the backend, not directly to Firestore. The backend reads the
 
 The backend treats a row as a late-to-school case only when it looks like a missed roll-call absence row:
 
-- `Shorthand` is `U` with `Description` `Unjustified`, or
-- `Shorthand` is `?` with `Description` `Absent`
-- and the start of the time range is `8:00AM` or `8:25AM`
+- `Shorthand` is not one of `S`, `F`, `E`, `B`, `L`, or `M`
+- `Description` is not one of `Sick`, `Flexible`, `Suspended`, `School Business`, `Leave`, or `Exempt`
+- `Shorthand` is `U` with `Description` `Unjustified`, or `Shorthand` is `?` with `Description` `Absent`
+- the `Time` column contains a valid start and end time
+- the start of the time range is `8:00AM` or `8:25AM`
+- the end of the time range is strictly after `8:35AM`
 
 So the system is not trying to ingest every attendance code. It is specifically looking for late-to-school cases inferred from roll-call absence rows.
 
