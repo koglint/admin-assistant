@@ -31,80 +31,21 @@
     <div id="content" style="display:none;">
         <section class="page-intro">
             <h2>Report Tools</h2>
-            <p>Use these exports to prepare summaries, escalation lists, and student history reports for staff meetings or parent follow-up.</p>
-        </section>
-        <section class="control-panel">
-            <div class="panel-block">
-                <label for="export-format"><strong>Export Format</strong></label>
-                <select id="export-format">
-                    <option value="pdf">PDF</option>
-                    <option value="excel">Excel</option>
-                </select>
-            </div>
-        </section>
-
-        <section class="admin-card">
-            <h2>Whole School Summary</h2>
-            <p class="admin-note">Export a school-wide lateness summary for current records.</p>
-            <button id="generate-summary-report">Generate Summary Report</button>
-        </section>
-
-        <section class="admin-card">
-            <h2>All Students Register</h2>
-            <p class="admin-note">Export every student who has ever been recorded in the system, including all unjustified late-arrival dates and their most recently completed detention.</p>
-            <button id="generate-all-students-report">Generate All Students Report</button>
+            <p>Use these exports to prepare escalation lists and missed detention follow-up for staff meetings or parent contact.</p>
         </section>
 
         <section class="admin-card">
             <h2>Missed Detention Reports</h2>
-            <p class="admin-note">Export historic missed detention records, or only current outstanding detention reminders.</p>
-            <button id="generate-missed-detention-events-report">Historic Missed Detentions Report</button>
-            <button id="generate-outstanding-missed-detention-report">Outstanding Missed Detentions Report</button>
             <button id="generate-missed-detention-pdf">Generate Missed Detention Slips (One Student Per Page) PDF</button>
         </section>
 
         <section class="admin-card">
             <h2>Escalation Reports</h2>
-            <p class="admin-note">Generate Excel reports for students who have missed two detention opportunities, students with five or more late arrivals, or both groups together.</p>
+            <p class="admin-note">Generate Excel reports for students who have missed two detention opportunities or students with five or more late arrivals.</p>
             <div class="action-toolbar">
                 <button id="generate-missed-detentions-report">Two Missed Detentions</button>
                 <button id="generate-late-count-report">Five or More Lates</button>
-                <button id="generate-combined-escalation-report">Combined Escalation Report</button>
             </div>
-        </section>
-
-        <section class="admin-card">
-            <h2>Student History Report</h2>
-            <div class="control-panel">
-                <div class="panel-block">
-                    <label for="history-scope"><strong>Selection Type</strong></label>
-                    <select id="history-scope">
-                        <option value="single">Single Student</option>
-                        <option value="manual">Selected Students</option>
-                        <option value="rollClass">Roll Class</option>
-                        <option value="yearGroup">Year Group</option>
-                    </select>
-                </div>
-                <div class="panel-block">
-                    <label for="student-search"><strong>Search Students</strong></label>
-                    <input type="text" id="student-search" placeholder="Search by name or roll class" />
-                </div>
-                <div class="panel-block">
-                    <label for="roll-class-select"><strong>Roll Class</strong></label>
-                    <select id="roll-class-select"></select>
-                </div>
-                <div class="panel-block">
-                    <label for="year-group-select"><strong>Year Group</strong></label>
-                    <select id="year-group-select"></select>
-                </div>
-            </div>
-
-            <div class="admin-card">
-                <strong>Students</strong>
-                <div id="student-picker" class="student-picker"></div>
-            </div>
-
-            <button id="generate-history-report">Generate Student History Report</button>
         </section>
     </div>
 </body>

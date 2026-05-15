@@ -85,12 +85,12 @@ If a detention was marked incorrectly, the page can undo the last served entry.
 
 If a student is marked absent from detention, the backend does not immediately assume they skipped detention unfairly.
 
-Instead, it can wait for a later upload for that same report date to determine whether the student was:
+Instead, it waits for an upload with full-day coverage for the detention date. The backend uses the absence export conservatively:
 
-- actually present at school and missed detention, or
-- absent from school for the day
+- no absence row for that student/date means the student is treated as present all day and available for detention
+- any absence row for that student/date means the student is not safely counted as present during detention
 
-If they were present at school, `missedWhilePresentCount` increases.
+If there is no absence row, `missedWhilePresentCount` is recalculated from confirmed missed-detention history.
 
 ### How escalation works
 
@@ -275,22 +275,24 @@ There are also manual resolved/unresolved toggles in the detention workflow, whi
 
 ### Pending attendance evaluation for missed detention
 
-If detention attendance cannot be decided immediately, the backend can leave a detention waiting for later evidence from another upload for the same report date.
+If detention attendance cannot be decided immediately, the backend can leave a detention waiting for later evidence from an upload that covers the detention date.
 
-The backend checks later uploads to decide whether the student was:
+The backend checks later uploads conservatively:
 
-- present at school and therefore missed detention while at school, or
-- absent from school, in which case the missed detention should not count against them the same way
+- no absence row for the student/date means present at school and therefore missed detention while at school
+- any absence row for the student/date means the missed detention is not counted and the student gets another chance
 
 If the student was present:
 
-- `missedWhilePresentCount` is incremented
+- `missedWhilePresentCount` is recalculated from confirmed history
 - a `missed_while_present` history event is written
+- `attendanceEvidence` is set to `no_absence_row_full_day_coverage`
 - the detention is moved to the next school day
 
-If the student was absent:
+If any absence row was recorded:
 
-- an `absent_from_school` history event is written
+- a `not_counted_absence_recorded` history event is written
+- `attendanceEvidence` is set to `absence_row_recorded_not_counted`
 - the detention is also re-scheduled
 
 ### Escalation lifecycle
