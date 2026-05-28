@@ -435,7 +435,7 @@ function exportHistoryReport() {
 async function exportEscalationSubsetReport(reportType) {
   const date = getFormattedDate();
   const rows = allStudents
-    .map(student => buildEscalationReportRow(student, reportType))
+    .map(student => buildEscalationReportRow(student, reportType, date))
     .filter(Boolean)
     .sort((a, b) => a.Surname.localeCompare(b.Surname) || a["Given Name"].localeCompare(b["Given Name"]));
 
@@ -453,20 +453,24 @@ async function exportEscalationSubsetReport(reportType) {
   XLSX.writeFile(workbook, `${filenamePrefix}_${date}.xlsx`);
 }
 
-function buildEscalationReportRow(student, reportType) {
+function buildEscalationReportRow(student, reportType, reportDate) {
   const criteria = getEscalationCriteria(student);
   if (!matchesEscalationReport(criteria, reportType)) {
     return null;
   }
 
+  const lateArrivalDates = getUnjustifiedLateArrivalDates(student);
+
   return {
+    "Report Generated Date": reportDate,
     Surname: student.surname,
     "Given Name": student.givenName,
     Year: student.yearGroup || '',
     "Roll Class": student.rollClass,
-    "Late Arrivals": criteria.lateCount,
+    "Number of Late Arrivals": criteria.lateCount,
+    "Late Arrival Dates": lateArrivalDates.join(', '),
     "Missed Detention Opportunities": criteria.missedOpportunityCount,
-    "Active Detention": student.activeDetention?.scheduledForDate || '',
+    "Current Open Detention Due Date": student.activeDetention?.scheduledForDate || '',
     "Matched Criteria": criteria.labels.join(', '),
     "Escalation Reasons": formatReasons(student.escalationReasons)
   };
