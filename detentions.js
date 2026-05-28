@@ -487,20 +487,20 @@ function renderDetentionTable(data) {
     }
 
     tr.innerHTML = `
-      <td><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""} ${student.escalated ? "disabled" : ""}></td>
-      <td class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
-      <td class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
-      <td>${student.yearGroup || '-'}</td>
-      <td>${student.rollClass}</td>
-      <td>${student.latestDate}</td>
-      <td>${student.truancyCount}</td>
-      <td>${student.detentionsServed}</td>
-      <td>
+      <td data-label="Select"><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""} ${student.escalated ? "disabled" : ""}></td>
+      <td data-label="Given Name" class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
+      <td data-label="Surname" class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
+      <td data-label="Year">${student.yearGroup || '-'}</td>
+      <td data-label="Roll Class">${student.rollClass}</td>
+      <td data-label="Last Late">${student.latestDate}</td>
+      <td data-label="Late Count">${student.truancyCount}</td>
+      <td data-label="Detentions Served">${student.detentionsServed}</td>
+      <td data-label="Resolved">
         <span class="status-pill ${student.truancyResolved ? "status-ok" : "status-pending"} toggle-resolved" data-id="${student.studentId}" data-current="${student.truancyResolved}">
           ${student.truancyResolved ? 'Resolved' : 'Pending'}
         </span>
       </td>
-      <td><button class="undo-btn" data-id="${student.studentId}">Undo</button></td>
+      <td data-label="Undo"><button class="undo-btn" data-id="${student.studentId}">Undo</button></td>
     `;
 
     tableBody.appendChild(tr);

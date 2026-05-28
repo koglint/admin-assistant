@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Upload Attendance Data</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="main.js"></script>
@@ -29,21 +30,40 @@
     <div id="content" style="display:none;">
         <section class="page-intro">
             <h2>Upload Workflow</h2>
-            <p>Use this page whenever you want to refresh the system with a new Sentral export. You can upload multiple reports for the same day as more information becomes available.</p>
+            <p>Use the blue daily upload for morning late arrivals. Use the green confirmation upload for full-day or weekly data after detention rolls have been marked.</p>
         </section>
         <section id="upload-section" class="admin-card">
             <h2>Upload File</h2>
             <section class="upload-guide">
-                <p><strong>When to export:</strong> Export the Sentral Report AFTER Period 2 and BEFORE Lunch/ second break. This must be done every day.</p>
-                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export. </p> <br/> <p>Be sure to download the absences FOR THE DAY (not the week, etc). </p>
+                <p><strong>Blue daily upload:</strong> use today's morning Sentral absence export, after Period 2 and before first break detention. This records late arrivals and assigns detentions.</p>
+                <p><strong>Green confirmation upload:</strong> use full-day or full-week absence data after detention rolls are marked. This confirms missed detentions and does not create new late detentions.</p>
+                <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export.</p>
                 <p><strong>File type:</strong> upload the Sentral <code>.xls</code> absence export.</p>
-                <p><strong>What if the upload period is missed?</strong> If there are issues with exporting the Sentral report or uploading in the proper window, you may still upload the file at any time. You will just need to let an admin know as there may be minor issues with students being added to the detention for the wrong day. </p>
-                <p><strong>How lateness is identified:</strong> the parser only treats missed roll-call rows as late-to-school cases. It looks for <code>Shorthand</code> / <code>Description</code> combinations of <code>U + Unjustified</code> or <code>? + Absent</code>, and requires the left side of the <code>Time</code> range to start at <code>8:00AM</code> or <code>8:25AM</code>.</p>
-                <p><strong>Arrival time and lateness:</strong> the code splits the <code>Time</code> value on <code>-</code>, uses the right-hand side as the arrival time, and measures lateness against <code>8:35AM</code>.</p>
-                <p><strong>Detention flow:</strong> detention scheduling follows the late-arrival poster. On Tuesday, late arrivals are carried to Wednesday because detention runs at first break. On Monday, Wednesday, Thursday, and Friday, students who arrived before first break can be scheduled the same day; arrivals from first break onward move to the next school day.</p>
-                <p><strong>Detention absence checks:</strong> if a student was marked absent from detention, later uploads for that same report date are used to work out whether they were actually at school or absent for the day.</p>
+                <p><strong>Order matters:</strong> upload morning lates, mark the detention roll, then upload confirmation data. Confirmation data can be daily or weekly.</p>
+                <p><strong>Late detection:</strong> only missed roll-call rows after <code>8:35AM</code> are treated as late arrivals.</p>
             </section>
             <form id="upload-form">
+                <fieldset class="upload-mode-fieldset">
+                    <legend>Choose Upload Type</legend>
+                    <div class="upload-mode-grid">
+                        <label class="upload-mode-card late-mode-card">
+                            <input type="radio" name="upload-mode" value="late_arrivals" checked />
+                            <span class="upload-mode-content">
+                                <span class="upload-mode-kicker">Blue daily upload</span>
+                                <span class="upload-mode-title">Morning Late Arrivals</span>
+                                <span class="upload-mode-copy">Use today's morning report. Records late arrivals and assigns detentions.</span>
+                            </span>
+                        </label>
+                        <label class="upload-mode-card confirmation-mode-card">
+                            <input type="radio" name="upload-mode" value="attendance_confirmation" />
+                            <span class="upload-mode-content">
+                                <span class="upload-mode-kicker">Green catch-up upload</span>
+                                <span class="upload-mode-title">Attendance Confirmation Only</span>
+                                <span class="upload-mode-copy">Use full-day or full-week data. Confirms missed detentions and skips new late detention creation.</span>
+                            </span>
+                        </label>
+                    </div>
+                </fieldset>
                 <input type="file" id="xls-file" accept=".xls,.xlsx" required />
                 <button type="submit">Upload</button>
             </form>

@@ -177,13 +177,13 @@ function renderEscalatedList() {
     const row = document.createElement('tr');
     row.classList.add('escalated-row');
     row.innerHTML = `
-      <td>${student.name}</td>
-      <td>${student.yearGroup || '-'}</td>
-      <td>${student.rollClass}</td>
-      <td>${student.lateCount}</td>
-      <td>${student.escalationCause || formatReasons(student.escalationReasons)}</td>
-      <td>${formatDetentionStatus(student.activeDetention)}</td>
-      <td>
+      <td data-label="Name">${student.name}</td>
+      <td data-label="Year">${student.yearGroup || '-'}</td>
+      <td data-label="Roll Class">${student.rollClass}</td>
+      <td data-label="Late Count">${student.lateCount}</td>
+      <td data-label="Escalation Cause">${student.escalationCause || formatReasons(student.escalationReasons)}</td>
+      <td data-label="Detention Status">${formatDetentionStatus(student.activeDetention)}</td>
+      <td data-label="Actions">
         <button class="de-escalate-student secondary-btn" data-id="${student.studentId}">De-escalate</button>
       </td>
     `;

@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Create a Report</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -31,7 +32,7 @@
     <div id="content" style="display:none;">
         <section class="page-intro">
             <h2>Report Tools</h2>
-            <p>Use these exports to prepare escalation lists and missed detention follow-up for staff meetings or parent contact.</p>
+            <p>Use these exports after morning uploads, detention rolls, and attendance confirmation uploads have been processed.</p>
         </section>
 
         <section class="admin-card">
@@ -41,7 +42,7 @@
 
         <section class="admin-card">
             <h2>Escalation Reports</h2>
-            <p class="admin-note">Generate Excel reports for students who have missed two detention opportunities or students with five or more late arrivals.</p>
+            <p class="admin-note">Two missed detentions only appears after confirmation data proves the student was present at school for two missed detention opportunities.</p>
             <div class="action-toolbar">
                 <button id="generate-missed-detentions-report">Two Missed Detentions</button>
                 <button id="generate-late-count-report">Five or More Lates</button>

@@ -200,6 +200,7 @@ if (form && fileInput && statusDiv) {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('uploadMode', getSelectedUploadMode());
 
     statusDiv.textContent = "Uploading...";
 
@@ -221,6 +222,10 @@ if (form && fileInput && statusDiv) {
       statusDiv.textContent = "Error uploading file.";
     }
   });
+}
+
+function getSelectedUploadMode() {
+  return form?.querySelector('input[name="upload-mode"]:checked')?.value || "late_arrivals";
 }
 
 async function loadTruancies() {
@@ -304,18 +309,18 @@ function renderTable(data) {
     }
 
     tr.innerHTML = `
-      <td><button class="toggle-details" data-student-id="${student.studentId}">${expandedStudentIds.has(student.studentId) ? "&#9660;" : "&#9654;"}</button></td>
-      <td class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
-      <td class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
-      <td>${student.yearGroup || '-'}</td>
-      <td>${student.truancyCount}</td>
-      <td>${student.rollClass}</td>
-      <td>${student.latestDate}</td>
-      <td>${student.arrivalTime}</td>
-      <td>${student.minutesLate}</td>
-      <td>${student.totalHoursLate}</td>
-      <td>${student.detentionsServed}</td>
-      <td>
+      <td data-label="Details"><button class="toggle-details" data-student-id="${student.studentId}">${expandedStudentIds.has(student.studentId) ? "&#9660;" : "&#9654;"}</button></td>
+      <td data-label="Given Name" class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
+      <td data-label="Surname" class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
+      <td data-label="Year">${student.yearGroup || '-'}</td>
+      <td data-label="Late Count">${student.truancyCount}</td>
+      <td data-label="Roll Class">${student.rollClass}</td>
+      <td data-label="Last Late">${student.latestDate}</td>
+      <td data-label="Last Arrival">${student.arrivalTime}</td>
+      <td data-label="Last Minutes">${student.minutesLate}</td>
+      <td data-label="Total Late Hours">${student.totalHoursLate}</td>
+      <td data-label="Detentions Served">${student.detentionsServed}</td>
+      <td data-label="Resolved">
         <span class="status-pill status-display ${student.truancyResolved ? "status-ok" : "status-pending"}">
           ${student.truancyResolved ? "Resolved" : "Pending"}
         </span>
@@ -339,13 +344,13 @@ function renderTable(data) {
           <tbody>
             ${student.truancies.map(t => `
               <tr>
-                <td>${t.date}</td>
-                <td>${t.arrivalTime || '-'}</td>
-                <td>${t.minutesLate ?? '-'}</td>
-                <td>${t.explainer || '-'}</td>
-                <td>${t.explainerSource || '-'}</td>
-                <td>${t.description || '-'}</td>
-                <td>${t.comment || '-'}</td>
+                <td data-label="Date">${t.date}</td>
+                <td data-label="Arrival">${t.arrivalTime || '-'}</td>
+                <td data-label="Minutes Late">${t.minutesLate ?? '-'}</td>
+                <td data-label="Explainer">${t.explainer || '-'}</td>
+                <td data-label="Explainer Source">${t.explainerSource || '-'}</td>
+                <td data-label="Description">${t.description || '-'}</td>
+                <td data-label="Comment">${t.comment || '-'}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -454,7 +459,11 @@ function compareStudents(a, b, key, ascending) {
 }
 
 function buildUploadStatus(data) {
+  const confirmationOnly = data.uploadMode === "attendance_confirmation" || data.lateProcessingSkipped;
   const reportDate = data.reportDate ? `Processed report for ${data.reportDate}. ` : "Processed upload. ";
+  const mode = confirmationOnly
+    ? "Attendance confirmation only: late arrivals were not recorded and new detentions were not assigned. "
+    : "Morning late-arrival upload: late arrivals and detention assignment were processed. ";
   const pendingDates = Array.isArray(data.pendingDetentionCheckDates)
     ? data.pendingDetentionCheckDates
         .filter((item) => item && item.date && item.count)
@@ -465,13 +474,22 @@ function buildUploadStatus(data) {
     : "";
   const coverage = data.coversFullDay
     ? "This file appears to include full-day absence coverage. "
-    : "This file does not yet appear to show full-day absence coverage, so some detention absence checks may stay pending until a later report is uploaded. ";
+    : "This file does not yet appear to show full-day absence coverage, so some detention absence checks may stay pending until a confirmation upload includes that date. ";
   const checksCompleted = data.detentionChecksCompleted
     ? `${data.detentionChecksCompleted} pending detention attendance check(s) were completed. `
+    : "";
+  const missedConfirmed = data.missedDetentionsConfirmed
+    ? `${data.missedDetentionsConfirmed} missed detention(s) were confirmed while the student was present at school. `
+    : "";
+  const notCounted = data.detentionAbsencesNotCounted
+    ? `${data.detentionAbsencesNotCounted} missed detention absence(s) were not counted because an absence row was recorded. `
+    : "";
+  const rolledForward = data.detentionsRolledForward
+    ? `${data.detentionsRolledForward} detention(s) were rolled forward. `
     : "";
   const checksWaiting = data.pendingDetentionChecks
     ? `${data.pendingDetentionChecks} detention attendance check(s) are still waiting for fuller attendance data for ${pendingDates.length ? pendingDates.join(", ") : "that date"}.`
     : "";
 
-  return `${reportDate}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${checksCompleted}${latestObserved}${coverage}${checksWaiting}`.trim();
+  return `${reportDate}${mode}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${checksCompleted}${missedConfirmed}${notCounted}${rolledForward}${latestObserved}${coverage}${checksWaiting}`.trim();
 }

@@ -25,7 +25,10 @@ The project has two parts:
 
 Staff upload a Sentral attendance export in `.xls` or `.xlsx` format.
 
-The upload goes to the backend, not directly to Firestore. The backend reads the spreadsheet, finds rows that count as late-to-school cases, and updates student documents in the `students` collection.
+The upload goes to the backend, not directly to Firestore. The Upload Attendance Data page has two modes:
+
+- `Morning Late Arrivals`: use the daily morning absence export. The backend records late arrivals, assigns detentions, and writes attendance-day evidence.
+- `Attendance Confirmation Only`: use full-day or full-week absence data after detention rolls are marked. The backend updates attendance-day evidence and confirms missed detentions, but skips new late-arrival and detention creation.
 
 ### What counts as a late arrival
 
@@ -85,7 +88,7 @@ If a detention was marked incorrectly, the page can undo the last served entry.
 
 If a student is marked absent from detention, the backend does not immediately assume they skipped detention unfairly.
 
-Instead, it waits for an upload with full-day coverage for the detention date. The backend uses the absence export conservatively:
+Instead, it waits for an `Attendance Confirmation Only` upload with full-day coverage for the detention date. The backend uses the absence export conservatively:
 
 - no absence row for that student/date means the student is treated as present all day and available for detention
 - any absence row for that student/date means the student is not safely counted as present during detention
@@ -115,11 +118,12 @@ The backend stores:
 Typical daily flow:
 
 1. Sign in with the school Google account.
-2. Upload the latest Sentral attendance export.
+2. Use the blue `Morning Late Arrivals` upload with today's morning Sentral absence export.
 3. Check the View Late Data page to review current unresolved late-arrival cases.
 4. Use the Mark Detention Roll page during detention to mark students who successfully complete detention.
-5. Use Escalated Students to review escalated cases, manually escalate or de-escalate students, and export the escalation list if needed.
-6. Use Reports when a formal export is needed.
+5. Use the green `Attendance Confirmation Only` upload with full-day or weekly absence data to confirm missed detentions.
+6. Use Escalated Students to review escalated cases, manually escalate or de-escalate students, and export the escalation list if needed.
+7. Use Reports when a formal export is needed.
 
 ### What to remember before changing anything
 
@@ -455,27 +459,28 @@ This page handles attendance uploads.
 What it does:
 
 - Lets the user upload a Sentral `.xls` or `.xlsx` absence export.
+- Lets the user choose `Morning Late Arrivals` or `Attendance Confirmation Only`.
 - Sends the file to the backend `POST /upload` endpoint using `FormData`.
 - Shows a processing summary returned by the backend.
-- No longer asks the user to decide whether the file is a midday or end-of-day upload.
 
-The backend now decides what the file proves from the spreadsheet contents themselves:
+The two upload modes are:
 
-- late-to-school rows are identified from roll-call absence entries
+- `Morning Late Arrivals`: records late arrivals, assigns/reconciles detentions, and writes attendance-day records.
+- `Attendance Confirmation Only`: writes attendance-day records and resolves missed detention checks without creating new late detentions.
+
+The backend still decides what the file proves from the spreadsheet contents:
+
+- late-to-school rows are identified from roll-call absence entries in morning mode
 - same-day versus next-day detention is decided from the student arrival time compared with first break
 - repeated uploads for the same report date are allowed
-- detention absence checks stay pending until a later report contains enough day coverage to resolve them
+- confirmation uploads can contain daily or weekly full-day data
+- detention absence checks stay pending until a confirmation upload contains enough day coverage to resolve them
 
 ### `late-data.html` + `main.js`
 
 This page shows the current late-arrivals table.
 
-The late-data flow is:
-
-1. The user chooses an attendance file.
-2. `main.js` sends it to the backend `POST /upload` endpoint using `FormData`.
-3. The backend parses the spreadsheet and updates Firestore.
-4. On success, the frontend reloads the current truancy list from Firestore.
+The late-data table is affected by `Morning Late Arrivals` uploads. `Attendance Confirmation Only` uploads update detention evidence but do not add new late arrivals.
 
 ### `detentions.html` + `detentions.js`
 
@@ -486,6 +491,7 @@ What it does:
 - Loads all students with truancy records.
 - Shows latest late date, total truancy count, detention count, and current resolution status.
 - Lets staff select multiple students and mark them as present for detention.
+- Marks due students who are not selected as absent from detention.
 - Lets staff manually toggle `truancyResolved`.
 - Lets staff undo a detention mark.
 - Lets staff hide served students or hide escalated students from the table.
@@ -509,6 +515,8 @@ What it does:
 - Exports missed detention records sorted by missed detention date.
 - Exports escalation reports for missed-detention and late-count thresholds.
 - Exports selected student late-arrival history.
+
+The two-missed-detentions escalation report only includes confirmed missed detention opportunities. Staff should run an `Attendance Confirmation Only` upload before relying on that report.
 
 Libraries used on this page:
 
@@ -641,12 +649,13 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 ## Typical Workflow
 
 1. Sign in on the home page.
-2. Upload a fresh attendance spreadsheet on the Upload Attendance Data page.
+2. Use `Morning Late Arrivals` on the Upload Attendance Data page with today's morning absence export.
 3. Review unresolved late arrivals on the View Late Data page.
 4. Move to the Detentions page to record served detentions.
-5. Use the Escalated page for students needing manual escalation.
-6. Use the Reports page to export summaries for staff use.
-7. Use the Admin page only for protected maintenance actions such as a full student-data purge.
+5. Use `Attendance Confirmation Only` with full-day or weekly absence data to confirm missed detentions.
+6. Use the Escalated page for students needing manual escalation.
+7. Use the Reports page to export summaries for staff use.
+8. Use the Admin page only for protected maintenance actions such as a full student-data purge.
 
 ## Maintenance Notes
 

@@ -212,6 +212,99 @@ select {
   flex-wrap: wrap;
 }
 
+.upload-mode-fieldset {
+  width: 100%;
+  border: 0;
+  margin: 0 0 6px;
+}
+
+.upload-mode-fieldset legend {
+  font-weight: 800;
+  color: #24384c;
+  margin-bottom: 10px;
+}
+
+.upload-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.upload-mode-card {
+  position: relative;
+  min-height: 138px;
+  display: flex;
+  align-items: stretch;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 8px 18px rgba(31, 45, 61, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.upload-mode-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(31, 45, 61, 0.12);
+}
+
+.upload-mode-card input {
+  position: absolute;
+  inset: 14px auto auto 14px;
+  width: 18px;
+  height: 18px;
+  accent-color: currentColor;
+}
+
+.upload-mode-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 16px 16px 16px 46px;
+}
+
+.upload-mode-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #5b6f83;
+}
+
+.upload-mode-title {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #1f2d3d;
+}
+
+.upload-mode-copy {
+  color: #43566a;
+  line-height: 1.35;
+}
+
+.late-mode-card {
+  border-color: #9fc7e5;
+  background: #eef7ff;
+}
+
+.confirmation-mode-card {
+  border-color: #9fd8bc;
+  background: #edf9f2;
+}
+
+.late-mode-card:has(input:checked) {
+  border-color: #1f6aa5;
+  box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.18), 0 12px 24px rgba(31, 106, 165, 0.18);
+}
+
+.confirmation-mode-card:has(input:checked) {
+  border-color: #1f8f55;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.18), 0 12px 24px rgba(31, 143, 85, 0.18);
+}
+
 #upload-status {
   margin-top: 10px;
   font-weight: bold;
@@ -740,12 +833,15 @@ td:nth-child(7) {
 
 @media (max-width: 768px) {
   body {
-    padding: 16px;
+    padding: 10px;
+    max-width: none;
   }
 
   h1 {
     font-size: 24px;
-    text-align: center;
+    text-align: left;
+    line-height: 1.2;
+    margin-bottom: 10px;
   }
 
   h2 {
@@ -769,7 +865,16 @@ td:nth-child(7) {
 
   button {
     font-size: 14px;
+    min-height: 44px;
     padding: 10px 16px;
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="file"],
+  select {
+    min-height: 44px;
+    width: 100%;
   }
 
   .toggle-btn {
@@ -797,10 +902,16 @@ td:nth-child(7) {
   .navbar a {
     width: 100%;
     text-align: left;
+    padding: 12px 14px;
+    font-size: 15px;
   }
 
   #auth-section {
-    justify-content: center;
+    justify-content: flex-start;
+  }
+
+  #auth-section button {
+    width: 100%;
   }
 
   #generate-report {
@@ -816,8 +927,40 @@ td:nth-child(7) {
 
   .upload-guide,
   .launchpad,
-  .control-panel {
+  .control-panel,
+  .page-intro,
+  .admin-card {
     padding: 14px;
+    border-radius: 8px;
+  }
+
+  .upload-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-mode-card {
+    min-height: 128px;
+  }
+
+  .control-panel {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sort-button-group,
+  .year-filter-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .year-filter-group {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sort-btn,
+  .year-filter-btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .home-shell {
@@ -849,6 +992,168 @@ td:nth-child(7) {
 
   .action-toolbar-group button {
     width: 100%;
+  }
+
+  .search-results-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-results-list button {
+    width: 100%;
+  }
+
+  .table-card {
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #detention-table,
+  #truancy-table,
+  .table-card > table:not(.inner-table) {
+    border-collapse: separate;
+    border-spacing: 0 12px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #detention-table thead,
+  #truancy-table thead,
+  .table-card > table:not(.inner-table) > thead {
+    display: none;
+  }
+
+  #detention-table tbody,
+  #truancy-table tbody,
+  .table-card > table:not(.inner-table) > tbody,
+  #detention-table tr,
+  #truancy-table tr,
+  .table-card > table:not(.inner-table) > tbody > tr,
+  #detention-table td,
+  #truancy-table td,
+  .table-card > table:not(.inner-table) > tbody > tr > td {
+    display: block;
+    width: 100%;
+  }
+
+  #detention-table tr,
+  #truancy-table tr,
+  .table-card > table:not(.inner-table) > tbody > tr {
+    margin-bottom: 12px;
+    border: 1px solid #d7e2ed;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 6px 16px rgba(31, 45, 61, 0.08);
+    overflow: hidden;
+  }
+
+  #detention-table td,
+  #truancy-table td,
+  .table-card > table:not(.inner-table) > tbody > tr > td {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 12px;
+    text-align: right;
+    border-bottom: 1px solid #edf1f5;
+    word-break: break-word;
+  }
+
+  #detention-table td:last-child,
+  #truancy-table td:last-child,
+  .table-card > table:not(.inner-table) > tbody > tr > td:last-child {
+    border-bottom: 0;
+  }
+
+  #detention-table td::before,
+  #truancy-table td::before,
+  .table-card > table:not(.inner-table) > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    color: #5b6f83;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  #detention-table td[data-label="Select"] {
+    justify-content: flex-start;
+  }
+
+  #detention-table td[data-label="Select"]::before {
+    flex: 0 0 auto;
+    min-width: 96px;
+  }
+
+  #detention-table .select-student {
+    width: 34px;
+    height: 34px;
+  }
+
+  #detention-table .undo-btn,
+  #truancy-table .toggle-details {
+    min-width: 96px;
+  }
+
+  #truancy-table .details-row {
+    border-color: #cbd9e5;
+  }
+
+  #truancy-table .details-row > td {
+    display: block;
+    padding: 10px;
+  }
+
+  #truancy-table .details-row > td::before {
+    content: none;
+  }
+
+  .inner-table thead {
+    display: none;
+  }
+
+  .inner-table,
+  .inner-table tbody,
+  .inner-table tr,
+  .inner-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .inner-table {
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .inner-table tr {
+    margin: 0 0 10px;
+    border: 1px solid #d7e2ed;
+    border-radius: 8px;
+    background: #f9fbfd;
+    overflow: hidden;
+  }
+
+  .inner-table td {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    text-align: right;
+    border-bottom: 1px solid #e8eef4;
+  }
+
+  .inner-table td::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    color: #5b6f83;
+    font-weight: 800;
+    text-align: left;
   }
 
   #xls-file {
