@@ -45,29 +45,66 @@
         </section>
 
         <section id="admin-panel" class="admin-card hidden">
-            <h2>Danger Zone</h2>
+            <h2>Protected Actions</h2>
             <p class="admin-note">
-                Purge removes every student currently stored in Firestore. This is intended as a full reset before refreshing the system with a new upload, and it only runs through the backend after the approved user and password checks pass.
+                These actions only run through the backend after the approved user and password checks pass. Use the full reset only when the whole Firestore dataset should be cleared.
             </p>
 
-            <div class="purge-panel">
-                <button id="purge-btn" class="purge-btn">
-                    <span class="purge-icon">&#9760;</span>
-                    Purge
-                </button>
-                <p id="purge-availability" class="admin-status"></p>
+            <div class="admin-action-grid">
+                <article class="admin-action-card action-exception">
+                    <h3>Add Student Exception</h3>
+                    <p>Prevents one student ID from receiving detentions or appearing in reports. Existing student and attendance-day records for that ID are removed.</p>
+                    <button id="exception-btn" class="exception-btn">Add Exception</button>
+                </article>
+
+                <article class="admin-action-card action-student-purge">
+                    <h3>Purge One Student</h3>
+                    <p>Deletes one student document, matching attendance-day records, and any exception marker for that student ID.</p>
+                    <button id="student-purge-btn" class="student-purge-btn">Purge One Student</button>
+                </article>
+
+                <article class="admin-action-card action-full-purge">
+                    <h3>Purge ALL Data</h3>
+                    <p>Deletes every student, attendance-day, upload-tracking, and exception-list record from Firestore.</p>
+                    <button id="purge-btn" class="purge-btn">
+                        <span class="purge-icon">&#9760;</span>
+                        Purge ALL Data
+                    </button>
+                    <p id="purge-availability" class="admin-status"></p>
+                </article>
+            </div>
+
+            <div id="exception-confirmation" class="hidden confirm-box confirm-exception">
+                <p class="admin-warning">Enter a student ID, then type the same ID again to confirm adding this student to the exception list.</p>
+                <div class="admin-row">
+                    <input type="text" id="exception-student-id-input" placeholder="Student ID" />
+                    <input type="text" id="exception-confirm-input" placeholder="Confirm Student ID" />
+                    <input type="text" id="exception-reason-input" placeholder="Reason (optional)" />
+                    <button id="confirm-exception-btn" class="exception-btn">Confirm Exception</button>
+                    <button id="cancel-exception-btn" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+
+            <div id="student-purge-confirmation" class="hidden confirm-box confirm-student-purge">
+                <p class="admin-warning">Enter a student ID, then type the same ID again to confirm deleting only that student's Firestore records.</p>
+                <div class="admin-row">
+                    <input type="text" id="student-purge-id-input" placeholder="Student ID" />
+                    <input type="text" id="student-purge-confirm-input" placeholder="Confirm Student ID" />
+                    <button id="confirm-student-purge-btn" class="student-purge-btn">Confirm Student Purge</button>
+                    <button id="cancel-student-purge-btn" class="secondary-btn">Cancel</button>
+                </div>
             </div>
 
             <div id="purge-confirmation" class="hidden confirm-box">
                 <p class="admin-warning">Type <strong>DELETE</strong> to confirm that all student data should be removed.</p>
                 <div class="admin-row">
                     <input type="text" id="delete-confirm-input" placeholder="Type DELETE" />
-                    <button id="confirm-purge-btn" class="purge-btn">Confirm Purge</button>
+                    <button id="confirm-purge-btn" class="purge-btn">Confirm ALL Data Purge</button>
                     <button id="cancel-purge-btn" class="secondary-btn">Cancel</button>
                 </div>
             </div>
 
-            <p id="purge-status" class="admin-status"></p>
+            <p id="admin-action-status" class="admin-status"></p>
         </section>
     </div>
 </body>

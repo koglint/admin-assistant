@@ -6,7 +6,10 @@ import {
   onAuthStateChanged
 } from './firebase.js';
 
-const ADMIN_PURGE_URL = "https://admin-assistant-backend.onrender.com/admin/purge";
+const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
+const ADMIN_PURGE_URL = `${BACKEND_BASE_URL}/admin/purge`;
+const ADMIN_STUDENT_PURGE_URL = `${BACKEND_BASE_URL}/admin/student-purge`;
+const ADMIN_STUDENT_EXCEPTION_URL = `${BACKEND_BASE_URL}/admin/student-exception`;
 const ADMIN_AUTHORIZE_URL = "https://admin-assistant-backend.onrender.com/admin/authorize";
 const ALLOWED_ADMIN_USERNAMES = [
   "troy.koglin1",
@@ -34,13 +37,26 @@ const unlockBtn = document.getElementById('unlock-btn');
 const passwordInput = document.getElementById('admin-password');
 const passwordStatus = document.getElementById('password-status');
 const adminPanel = document.getElementById('admin-panel');
+const exceptionBtn = document.getElementById('exception-btn');
+const exceptionConfirmation = document.getElementById('exception-confirmation');
+const exceptionStudentIdInput = document.getElementById('exception-student-id-input');
+const exceptionConfirmInput = document.getElementById('exception-confirm-input');
+const exceptionReasonInput = document.getElementById('exception-reason-input');
+const confirmExceptionBtn = document.getElementById('confirm-exception-btn');
+const cancelExceptionBtn = document.getElementById('cancel-exception-btn');
+const studentPurgeBtn = document.getElementById('student-purge-btn');
+const studentPurgeConfirmation = document.getElementById('student-purge-confirmation');
+const studentPurgeIdInput = document.getElementById('student-purge-id-input');
+const studentPurgeConfirmInput = document.getElementById('student-purge-confirm-input');
+const confirmStudentPurgeBtn = document.getElementById('confirm-student-purge-btn');
+const cancelStudentPurgeBtn = document.getElementById('cancel-student-purge-btn');
 const purgeBtn = document.getElementById('purge-btn');
 const purgeAvailability = document.getElementById('purge-availability');
 const purgeConfirmation = document.getElementById('purge-confirmation');
 const deleteConfirmInput = document.getElementById('delete-confirm-input');
 const confirmPurgeBtn = document.getElementById('confirm-purge-btn');
 const cancelPurgeBtn = document.getElementById('cancel-purge-btn');
-const purgeStatus = document.getElementById('purge-status');
+const adminActionStatus = document.getElementById('admin-action-status');
 
 let adminUnlocked = false;
 let currentUserEmail = "";
@@ -149,35 +165,146 @@ purgeBtn.addEventListener("click", () => {
   if (!confirmed) return;
 
   deleteConfirmInput.value = "";
-  purgeStatus.textContent = "";
-  purgeStatus.classList.remove("success-text", "error-text");
+  clearActionStatus();
+  hideStudentActionPanels();
   purgeConfirmation.classList.remove("hidden");
   deleteConfirmInput.focus();
+});
+
+exceptionBtn.addEventListener("click", () => {
+  if (!adminUnlocked) return;
+
+  clearActionStatus();
+  hideStudentActionPanels();
+  exceptionStudentIdInput.value = "";
+  exceptionConfirmInput.value = "";
+  exceptionReasonInput.value = "";
+  exceptionConfirmation.classList.remove("hidden");
+  exceptionStudentIdInput.focus();
+});
+
+studentPurgeBtn.addEventListener("click", () => {
+  if (!adminUnlocked) return;
+
+  clearActionStatus();
+  hideStudentActionPanels();
+  studentPurgeIdInput.value = "";
+  studentPurgeConfirmInput.value = "";
+  studentPurgeConfirmation.classList.remove("hidden");
+  studentPurgeIdInput.focus();
+});
+
+cancelExceptionBtn.addEventListener("click", () => {
+  exceptionConfirmation.classList.add("hidden");
+  exceptionStudentIdInput.value = "";
+  exceptionConfirmInput.value = "";
+  exceptionReasonInput.value = "";
+  setActionStatus("Exception action cancelled.", false);
+});
+
+cancelStudentPurgeBtn.addEventListener("click", () => {
+  studentPurgeConfirmation.classList.add("hidden");
+  studentPurgeIdInput.value = "";
+  studentPurgeConfirmInput.value = "";
+  setActionStatus("Student purge cancelled.", false);
 });
 
 cancelPurgeBtn.addEventListener("click", () => {
   purgeConfirmation.classList.add("hidden");
   deleteConfirmInput.value = "";
-  setPurgeStatus("Purge cancelled.", false);
+  setActionStatus("Full data purge cancelled.", false);
+});
+
+confirmExceptionBtn.addEventListener("click", async () => {
+  const studentId = normalizeStudentId(exceptionStudentIdInput.value);
+  const confirmation = normalizeStudentId(exceptionConfirmInput.value);
+
+  if (!studentId) {
+    setActionStatus("Enter the student ID to add to the exception list.", true);
+    return;
+  }
+
+  if (confirmation !== studentId) {
+    setActionStatus("Type the same student ID again to confirm.", true);
+    return;
+  }
+
+  await runProtectedStudentAction({
+    url: ADMIN_STUDENT_EXCEPTION_URL,
+    payload: {
+      studentId,
+      confirmation,
+      reason: exceptionReasonInput.value
+    },
+    buttons: [exceptionBtn, confirmExceptionBtn, cancelExceptionBtn],
+    pendingMessage: `Adding ${studentId} to the exception list...`,
+    successMessage: (data) => {
+      const summary = formatCollectionSummary(data);
+      return `Exception added for ${studentId}. Removed ${data.deleted || 0} existing record(s). ${summary}`;
+    },
+    onSuccess: () => {
+      exceptionConfirmation.classList.add("hidden");
+      exceptionStudentIdInput.value = "";
+      exceptionConfirmInput.value = "";
+      exceptionReasonInput.value = "";
+    }
+  });
+});
+
+confirmStudentPurgeBtn.addEventListener("click", async () => {
+  const studentId = normalizeStudentId(studentPurgeIdInput.value);
+  const confirmation = normalizeStudentId(studentPurgeConfirmInput.value);
+
+  if (!studentId) {
+    setActionStatus("Enter the student ID to purge.", true);
+    return;
+  }
+
+  if (confirmation !== studentId) {
+    setActionStatus("Type the same student ID again to confirm.", true);
+    return;
+  }
+
+  const confirmed = window.confirm(`Delete Firestore records for student ${studentId}?`);
+  if (!confirmed) return;
+
+  await runProtectedStudentAction({
+    url: ADMIN_STUDENT_PURGE_URL,
+    payload: {
+      studentId,
+      confirmation
+    },
+    buttons: [studentPurgeBtn, confirmStudentPurgeBtn, cancelStudentPurgeBtn],
+    pendingMessage: `Purging records for student ${studentId}...`,
+    successMessage: (data) => {
+      const summary = formatCollectionSummary(data);
+      return `Student purge complete for ${studentId}. Deleted ${data.deleted || 0} record(s). ${summary}`;
+    },
+    onSuccess: () => {
+      studentPurgeConfirmation.classList.add("hidden");
+      studentPurgeIdInput.value = "";
+      studentPurgeConfirmInput.value = "";
+    }
+  });
 });
 
 confirmPurgeBtn.addEventListener("click", async () => {
   if (!adminUnlocked || !auth.currentUser) return;
 
   if (deleteConfirmInput.value !== "DELETE") {
-    setPurgeStatus("Type DELETE exactly to confirm.", true);
+    setActionStatus("Type DELETE exactly to confirm.", true);
     return;
   }
 
   if (!passwordInput.value) {
-    setPurgeStatus("Enter the admin password before purging.", true);
+    setActionStatus("Enter the admin password before purging.", true);
     return;
   }
 
   purgeBtn.disabled = true;
   confirmPurgeBtn.disabled = true;
   cancelPurgeBtn.disabled = true;
-  setPurgeStatus("Requesting secure purge from the backend...", false);
+  setActionStatus("Requesting full data purge from the backend...", false);
 
   try {
     const idToken = await auth.currentUser.getIdToken(true);
@@ -195,16 +322,12 @@ confirmPurgeBtn.addEventListener("click", async () => {
 
     const data = await response.json();
     if (!response.ok || data.status !== "success") {
-      setPurgeStatus(data.message || "Secure purge failed.", true);
+      setActionStatus(data.message || "Full data purge failed.", true);
       return;
     }
 
-    const collectionSummary = data.deletedByCollection
-      ? Object.entries(data.deletedByCollection)
-          .map(([collectionName, count]) => `${collectionName}: ${count}`)
-          .join(", ")
-      : `${data.deleted} document(s)`;
-    setPurgeStatus(`Purge complete. Deleted ${data.deleted} document(s). ${collectionSummary}`, false);
+    const collectionSummary = formatCollectionSummary(data);
+    setActionStatus(`Full data purge complete. Deleted ${data.deleted} document(s). ${collectionSummary}`, false);
     purgeConfirmation.classList.add("hidden");
     deleteConfirmInput.value = "";
     passwordInput.value = "";
@@ -213,7 +336,7 @@ confirmPurgeBtn.addEventListener("click", async () => {
     setPasswordStatus("Admin controls locked again. Re-enter the backend password for another admin action.", false);
   } catch (err) {
     console.error(err);
-    setPurgeStatus("Could not contact the backend purge endpoint.", true);
+    setActionStatus("Could not contact the backend purge endpoint.", true);
   } finally {
     purgeBtn.disabled = false;
     confirmPurgeBtn.disabled = false;
@@ -225,13 +348,25 @@ function resetAdminUi() {
   adminUnlocked = false;
   passwordInput.value = "";
   deleteConfirmInput.value = "";
+  exceptionStudentIdInput.value = "";
+  exceptionConfirmInput.value = "";
+  exceptionReasonInput.value = "";
+  studentPurgeIdInput.value = "";
+  studentPurgeConfirmInput.value = "";
   adminPanel.classList.add("hidden");
+  exceptionConfirmation.classList.add("hidden");
+  studentPurgeConfirmation.classList.add("hidden");
   purgeConfirmation.classList.add("hidden");
+  exceptionBtn.disabled = true;
+  studentPurgeBtn.disabled = true;
   purgeBtn.disabled = true;
+  confirmExceptionBtn.disabled = false;
+  cancelExceptionBtn.disabled = false;
+  confirmStudentPurgeBtn.disabled = false;
+  cancelStudentPurgeBtn.disabled = false;
   confirmPurgeBtn.disabled = false;
   cancelPurgeBtn.disabled = false;
-  purgeStatus.textContent = "";
-  purgeStatus.classList.remove("error-text", "success-text");
+  clearActionStatus();
   updatePurgeAvailability();
   setPasswordStatus("", false);
 }
@@ -242,6 +377,8 @@ function updatePurgeAvailability(purgeEnabled = null) {
     purgeAvailability.classList.remove("success-text");
     purgeAvailability.classList.add("error-text");
     purgeBtn.disabled = true;
+    exceptionBtn.disabled = true;
+    studentPurgeBtn.disabled = true;
     return;
   }
 
@@ -250,6 +387,8 @@ function updatePurgeAvailability(purgeEnabled = null) {
     purgeAvailability.classList.remove("success-text");
     purgeAvailability.classList.add("error-text");
     purgeBtn.disabled = true;
+    exceptionBtn.disabled = true;
+    studentPurgeBtn.disabled = true;
     return;
   }
 
@@ -258,6 +397,8 @@ function updatePurgeAvailability(purgeEnabled = null) {
     purgeAvailability.classList.remove("success-text");
     purgeAvailability.classList.add("error-text");
     purgeBtn.disabled = true;
+    exceptionBtn.disabled = !adminUnlocked;
+    studentPurgeBtn.disabled = !adminUnlocked;
     return;
   }
 
@@ -265,6 +406,8 @@ function updatePurgeAvailability(purgeEnabled = null) {
   purgeAvailability.classList.remove("error-text");
   purgeAvailability.classList.add("success-text");
   purgeBtn.disabled = !adminUnlocked;
+  exceptionBtn.disabled = !adminUnlocked;
+  studentPurgeBtn.disabled = !adminUnlocked;
 }
 
 function isAllowedAdminEmail(email) {
@@ -278,8 +421,84 @@ function setPasswordStatus(message, isError) {
   passwordStatus.classList.toggle("success-text", message !== "" && !isError);
 }
 
-function setPurgeStatus(message, isError) {
-  purgeStatus.textContent = message;
-  purgeStatus.classList.toggle("error-text", isError);
-  purgeStatus.classList.toggle("success-text", message !== "" && !isError);
+function setActionStatus(message, isError) {
+  adminActionStatus.textContent = message;
+  adminActionStatus.classList.toggle("error-text", isError);
+  adminActionStatus.classList.toggle("success-text", message !== "" && !isError);
+}
+
+function clearActionStatus() {
+  setActionStatus("", false);
+}
+
+function hideStudentActionPanels() {
+  exceptionConfirmation.classList.add("hidden");
+  studentPurgeConfirmation.classList.add("hidden");
+  purgeConfirmation.classList.add("hidden");
+}
+
+async function runProtectedStudentAction({
+  url,
+  payload,
+  buttons,
+  pendingMessage,
+  successMessage,
+  onSuccess
+}) {
+  if (!adminUnlocked || !auth.currentUser) return;
+
+  if (!passwordInput.value) {
+    setActionStatus("Enter the admin password before running this action.", true);
+    return;
+  }
+
+  buttons.forEach(button => {
+    button.disabled = true;
+  });
+  setActionStatus(pendingMessage, false);
+
+  try {
+    const idToken = await auth.currentUser.getIdToken(true);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        password: passwordInput.value,
+        ...payload
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || data.status !== "success") {
+      setActionStatus(data.message || "Admin action failed.", true);
+      return;
+    }
+
+    setActionStatus(successMessage(data), false);
+    if (typeof onSuccess === "function") onSuccess(data);
+  } catch (err) {
+    console.error(err);
+    setActionStatus("Could not contact the backend admin endpoint.", true);
+  } finally {
+    buttons.forEach(button => {
+      button.disabled = false;
+    });
+  }
+}
+
+function normalizeStudentId(value) {
+  return String(value || "").trim();
+}
+
+function formatCollectionSummary(data) {
+  if (!data.deletedByCollection) {
+    return `${data.deleted || 0} document(s) affected.`;
+  }
+
+  return Object.entries(data.deletedByCollection)
+    .map(([collectionName, count]) => `${collectionName}: ${count}`)
+    .join(", ");
 }

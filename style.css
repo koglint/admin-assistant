@@ -771,8 +771,56 @@ td:nth-child(7) {
   color: #7f1d1d;
 }
 
-.purge-panel {
+.admin-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
   margin-top: 18px;
+}
+
+.admin-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 230px;
+  padding: 18px;
+  border: 2px solid #d7e2ed;
+  border-radius: 8px;
+  background: #f9fbfd;
+}
+
+.admin-action-card h3 {
+  margin: 0;
+  color: #24384c;
+  font-size: 19px;
+}
+
+.admin-action-card p {
+  margin: 0;
+  color: #4f6274;
+}
+
+.admin-action-card button {
+  width: 100%;
+  margin-top: auto;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.action-exception {
+  border-color: #9cc7b6;
+  background: #f2fbf7;
+}
+
+.action-student-purge {
+  border-color: #f2c377;
+  background: #fff8ed;
+}
+
+.action-full-purge {
+  border-color: #e28a8f;
+  background: #fff5f5;
 }
 
 .purge-btn {
@@ -786,6 +834,22 @@ td:nth-child(7) {
 .purge-icon {
   margin-right: 8px;
   font-size: 16px;
+}
+
+.student-purge-btn {
+  background-color: #b65f00;
+}
+
+.student-purge-btn:hover {
+  background-color: #d97706;
+}
+
+.exception-btn {
+  background-color: #1f7a5f;
+}
+
+.exception-btn:hover {
+  background-color: #24936f;
 }
 
 .secondary-btn {
@@ -802,6 +866,16 @@ td:nth-child(7) {
   border: 1px solid #f1b0b7;
   border-radius: 8px;
   background: #fff5f5;
+}
+
+.confirm-exception {
+  border-color: #9cc7b6;
+  background: #f2fbf7;
+}
+
+.confirm-student-purge {
+  border-color: #f2c377;
+  background: #fff8ed;
 }
 
 .search-results-list {
