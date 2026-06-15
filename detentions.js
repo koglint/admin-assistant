@@ -253,24 +253,6 @@ tableBody.addEventListener("click", async (e) => {
       alert("Failed to undo detention.");
     }
   }
-
-  if (e.target.classList.contains('toggle-resolved')) {
-    const studentId = e.target.dataset.id;
-    const current = e.target.dataset.current === 'true';
-    const newValue = !current;
-
-    const confirmed = window.confirm(`Set truancyResolved to ${newValue}?`);
-    if (!confirmed) return;
-
-    try {
-      await toggleResolvedState(studentId, newValue);
-      await loadDetentionSummary();
-      alert(`Truancy resolved set to ${newValue}`);
-    } catch (err) {
-      console.error("Failed to update truancyResolved", err);
-      alert("Error updating truancyResolved.");
-    }
-  }
 });
 
 async function loadDetentionSummary() {
@@ -330,14 +312,14 @@ async function loadDetentionSummary() {
       latestDate: latest?.date ?? '-',
       lateCount: student.lateCount || 0,
       detentionsServed: student.detentionsServed || 0,
-      truancyResolved: student.truancyResolved === true,
-      activeDetention: student.activeDetention || null
+      activeDetention: student.activeDetention || null,
+      resolved: isStudentResolved(student)
     });
   });
 
   detentionDataCache.forEach(student => {
     if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) studentsHiddenByYearFilter += 1;
-    if (hideResolved && student.truancyResolved) studentsHiddenAsResolved += 1;
+    if (hideResolved && student.resolved) studentsHiddenAsResolved += 1;
   });
 
   console.info("[Detention diagnostics] Firestore students read succeeded", {
@@ -379,7 +361,7 @@ function applyFiltersAndRender() {
 
   filteredDetentionData = detentionDataCache
     .filter(student => {
-      if (hideResolved && student.truancyResolved) return false;
+      if (hideResolved && student.resolved) return false;
       if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) return false;
 
       if (!query) return true;
@@ -433,7 +415,7 @@ function normalizeSortValue(value, key) {
     return Number(value) || 0;
   }
 
-  if (key === "truancyResolved") {
+  if (key === "resolved") {
     return value ? 1 : 0;
   }
 
@@ -464,7 +446,7 @@ function renderDetentionTable(data) {
 
   data.forEach(student => {
     const tr = document.createElement("tr");
-    tr.setAttribute("data-resolved", student.truancyResolved);
+    tr.setAttribute("data-resolved", student.resolved);
 
     tr.innerHTML = `
       <td data-label="Select"><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""}></td>
@@ -476,8 +458,8 @@ function renderDetentionTable(data) {
       <td data-label="Late Count">${student.lateCount}</td>
       <td data-label="Detentions Served">${student.detentionsServed}</td>
       <td data-label="Resolved">
-        <span class="status-pill ${student.truancyResolved ? "status-ok" : "status-pending"} toggle-resolved" data-id="${student.studentId}" data-current="${student.truancyResolved}">
-          ${student.truancyResolved ? 'Resolved' : 'Pending'}
+        <span class="status-pill status-display ${student.resolved ? "status-ok" : "status-pending"}">
+          ${student.resolved ? 'Resolved' : 'Pending'}
         </span>
       </td>
       <td data-label="Undo"><button class="undo-btn" data-id="${student.studentId}">Undo</button></td>
@@ -656,21 +638,6 @@ function nextSchoolDay(dateString) {
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
 }
 
-function studentToManualDetention() {
-  const today = getLocalDateString();
-  return {
-    status: "open",
-    createdFromLateDate: today,
-    scheduledForDate: today,
-    sourceContext: "manual_toggle",
-    createdAt: new Date().toISOString(),
-    lastRollMark: null,
-    lastRollMarkedAt: null,
-    pendingAttendanceCheckDate: null,
-    missedWhilePresentCount: 0
-  };
-}
-
 async function markSelectedPresent(selectedIds) {
   return updateSelectedStudents(selectedIds, async (studentId) => {
     const ref = doc(db, "students", studentId);
@@ -696,7 +663,6 @@ async function markSelectedPresent(selectedIds) {
       transaction.update(ref, {
         detentionsServed: currentCount + 1,
         lastDetentionServedDate: today,
-        truancyResolved: true,
         activeDetention: null,
         detentionHistory: history,
         updatedAt: serverTimestamp(),
@@ -855,7 +821,6 @@ async function undoServedDetention(studentId) {
 
     transaction.update(ref, {
       detentionsServed: currentCount - 1,
-      truancyResolved: false,
       lastDetentionServedDate: deleteField(),
       activeDetention: reopenedDetention,
       detentionHistory: history,
@@ -867,34 +832,12 @@ async function undoServedDetention(studentId) {
   });
 }
 
-async function toggleResolvedState(studentId, newValue) {
-  const ref = doc(db, "students", studentId);
-  return runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-    if (!snap.exists()) return false;
-
-    const updates = {
-      truancyResolved: newValue
-    };
-
-    if (!newValue) {
-      updates.lastDetentionServedDate = deleteField();
-      updates.activeDetention = studentToManualDetention(studentId);
-      updates.lastAction = "detention_reopened_manually";
-    } else {
-      updates.activeDetention = null;
-      updates.lastAction = "detention_resolved_manually";
-    }
-
-    updates.updatedAt = serverTimestamp();
-    updates.updatedBy = currentUserDescriptor;
-
-    transaction.update(ref, updates);
-    return true;
-  });
-}
-
 function buildUserDescriptor(user) {
   if (!user) return "unknown_user";
   return user.email || user.displayName || user.uid || "unknown_user";
+}
+
+function isStudentResolved(student) {
+  const activeDetention = student.activeDetention;
+  return !activeDetention || activeDetention.status !== "open";
 }

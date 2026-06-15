@@ -164,7 +164,7 @@ tableHeaders.forEach((header, idx) => {
       "minutesLate",
       "totalMinutesLate",
       "detentionsServed",
-      "truancyResolved"
+      "resolved"
     ];
 
     const key = keyMap[idx];
@@ -250,7 +250,8 @@ async function loadTruancies() {
       totalMinutesLate,
       totalHoursLate: (totalMinutesLate / 60).toFixed(2),
       detentionsServed: student.detentionsServed || 0,
-      truancyResolved: student.truancyResolved === true,
+      activeDetention: student.activeDetention || null,
+      resolved: isStudentResolved(student),
       lateArrivals: unresolved
     });
   });
@@ -265,7 +266,7 @@ function applyFiltersAndRender() {
 
   filteredStudentData = studentDataCache
     .filter(student => {
-      if (hideResolved && student.truancyResolved) return false;
+      if (hideResolved && student.resolved) return false;
       if (yearFilterButtons.length > 0 && !selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) return false;
 
       if (!query) return true;
@@ -289,7 +290,7 @@ function renderTable(data) {
   tableBody.innerHTML = "";
   data.forEach((student) => {
     const tr = document.createElement("tr");
-    if (student.truancyResolved) {
+    if (student.resolved) {
       tr.classList.add("resolved-row");
     }
 
@@ -306,8 +307,8 @@ function renderTable(data) {
       <td data-label="Total Late Hours">${student.totalHoursLate}</td>
       <td data-label="Detentions Served">${student.detentionsServed}</td>
       <td data-label="Resolved">
-        <span class="status-pill status-display ${student.truancyResolved ? "status-ok" : "status-pending"}">
-          ${student.truancyResolved ? "Resolved" : "Pending"}
+        <span class="status-pill status-display ${student.resolved ? "status-ok" : "status-pending"}">
+          ${student.resolved ? "Resolved" : "Pending"}
         </span>
       </td>
     `;
@@ -351,7 +352,7 @@ function updateStats() {
   if (!tableStats) return;
 
   const visibleCount = filteredStudentData.length;
-  const resolvedCount = filteredStudentData.filter(student => student.truancyResolved).length;
+  const resolvedCount = filteredStudentData.filter(student => student.resolved).length;
 
   tableStats.textContent = `${visibleCount} student(s) visible, ${resolvedCount} resolved in this view.`;
 }
@@ -408,6 +409,11 @@ function normalizeYearGroupValue(value) {
 
   const digits = text.match(/\d+/);
   return digits ? digits[0] : text;
+}
+
+function isStudentResolved(student) {
+  const activeDetention = student.activeDetention;
+  return !activeDetention || activeDetention.status !== "open";
 }
 
 function compareStudents(a, b, key, ascending) {

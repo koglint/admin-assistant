@@ -50,7 +50,7 @@ So the system is not trying to ingest every attendance code. It is specifically 
 - `lateCount`: total stored late-arrival records for that student
 - `activeDetention`: the current open detention, if one exists
 - `detentionsServed`: how many detentions have been marked as completed
-- `truancyResolved`: whether the student currently has an open detention case
+- resolved/pending display state: derived from whether `activeDetention.status` is `open`
 
 ### How detention scheduling works
 
@@ -78,7 +78,6 @@ That page:
 - lets staff tick students and mark `Successfully Completed Detention`
 - increments `detentionsServed`
 - clears `activeDetention`
-- sets `truancyResolved` to `true`
 
 If a detention was marked incorrectly, the page can undo the last served entry.
 
@@ -197,7 +196,6 @@ Important top-level fields:
 - `activeDetention`
 - `detentionsServed`
 - `detentionHistory`
-- `truancyResolved`
 - audit fields such as `updatedAt`, `updatedBy`, `lastAction`
 
 ### Late-arrival record model
@@ -236,16 +234,12 @@ When detention is served from the frontend:
 - `detentionsServed` increases
 - a `served` item is appended to `detentionHistory`
 - `activeDetention` is cleared
-- `truancyResolved` becomes `true`
 
 When a served detention is undone:
 
 - the frontend removes the latest served history entry
 - reduces `detentionsServed`
 - recreates an `activeDetention`
-- sets `truancyResolved` back to `false`
-
-There are also manual resolved/unresolved toggles in the detention workflow, which can reopen or close the current case without a normal served flow.
 
 ### Pending attendance evaluation for missed detention
 
@@ -290,7 +284,7 @@ If any absence row was recorded:
 `detentions.html` + `detentions.js`
 
 - used during detention to mark students who complete detention
-- supports bulk selection, filtering, undo, manual resolved toggling, and view statistics
+- supports bulk selection, filtering, undo, and view statistics
 
 `reports.html` + `reports.js`
 
@@ -428,7 +422,6 @@ What it does:
 - Shows latest late date, total late count, detention count, and current resolution status.
 - Lets staff select multiple students and mark them as present for detention.
 - Marks due students who are not selected as absent from detention.
-- Lets staff manually toggle `truancyResolved`.
 - Lets staff undo a detention mark.
 - Lets staff hide served students from the table.
 
@@ -436,7 +429,7 @@ Important data fields used on this page:
 
 - `detentionsServed`
 - `lastDetentionServedDate`
-- `truancyResolved`
+- `activeDetention`
 
 ### `reports.html` + `reports.js`
 
@@ -485,7 +478,6 @@ Typical document shape:
   "surname": "Citizen",
   "rollClass": "10.2",
   "lateCount": 2,
-  "truancyResolved": false,
   "detentionsServed": 1,
   "lastDetentionServedDate": "2026-04-01",
   "notes": "",
@@ -508,7 +500,7 @@ Typical document shape:
 
 Notes:
 
-- The frontend treats `truancyResolved` as the source of truth for whether the current case is resolved.
+- The frontend derives whether the current case is resolved from `activeDetention`.
 - Individual late-arrival records are displayed in the details table, but page-level workflow is based on the student document status.
 
 ## Authentication And Access
