@@ -24,8 +24,6 @@ const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
-const generateMissedDetentionsBtn = document.getElementById("generate-missed-detentions-report");
-const generateLateCountBtn = document.getElementById("generate-late-count-report");
 
 let allStudents = [];
 const attendanceDaysByKey = new Map();
@@ -60,14 +58,6 @@ generateMissedDetentionPdfBtn.addEventListener("click", async () => {
   await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
 });
 
-generateMissedDetentionsBtn.addEventListener("click", async () => {
-  await runWithButtonLoading(generateMissedDetentionsBtn, "Generating...", () => exportEscalationSubsetReport("missed_detention_twice"));
-});
-
-generateLateCountBtn.addEventListener("click", async () => {
-  await runWithButtonLoading(generateLateCountBtn, "Generating...", () => exportEscalationSubsetReport("late_count_over_five"));
-});
-
 async function runWithButtonLoading(button, loadingText, action) {
   const originalText = button.textContent;
   button.disabled = true;
@@ -97,8 +87,6 @@ async function loadStudents() {
       yearGroup: resolveYearGroup(data),
       lateCount: data.lateCount || data.truancyCount || 0,
       detentionsServed: data.detentionsServed || 0,
-      escalated: !!data.escalated,
-      escalationReasons: data.escalationReasons || [],
       detentionHistory: data.detentionHistory || [],
       lateArrivals: data.lateArrivals || data.truancies || [],
       activeDetention: data.activeDetention || null
@@ -150,9 +138,7 @@ function exportSummaryReport() {
     rollClass: student.rollClass,
     lateCount: student.lateCount,
     detentionsServed: student.detentionsServed,
-    activeDetention: student.activeDetention?.scheduledForDate || 'None',
-    escalated: student.escalated ? 'Yes' : 'No',
-    escalationReasons: formatReasons(student.escalationReasons)
+    activeDetention: student.activeDetention?.scheduledForDate || 'None'
   }));
 
   if (exportFormat.value === "pdf") {
@@ -160,8 +146,8 @@ function exportSummaryReport() {
     doc.text("Attendance Assistant Summary Report", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Surname", "Given Name", "Roll Class", "Late Count", "Detentions Served", "Active Detention", "Escalated", "Reasons"]],
-      body: rows.map(row => [row.surname, row.givenName, row.rollClass, row.lateCount, row.detentionsServed, row.activeDetention, row.escalated, row.escalationReasons]),
+      head: [["Surname", "Given Name", "Roll Class", "Late Count", "Detentions Served", "Active Detention"]],
+      body: rows.map(row => [row.surname, row.givenName, row.rollClass, row.lateCount, row.detentionsServed, row.activeDetention]),
       styles: { fontSize: 8 }
     });
     doc.save(`attendance_summary_${date}.pdf`);
@@ -185,9 +171,7 @@ function exportAllStudentsReport() {
     lateCount: student.lateCount,
     unjustifiedLateArrivalDates: getUnjustifiedLateArrivalDates(student).join(', '),
     mostRecentCompletedDetention: getMostRecentCompletedDetentionDate(student) || '',
-    currentActiveDetention: student.activeDetention?.scheduledForDate || '',
-    escalated: student.escalated ? 'Yes' : 'No',
-    escalationReasons: formatReasons(student.escalationReasons)
+    currentActiveDetention: student.activeDetention?.scheduledForDate || ''
   }));
 
   if (rows.length === 0) {
@@ -200,7 +184,7 @@ function exportAllStudentsReport() {
     doc.text("All Students Register", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Student ID", "Surname", "Given Name", "Year", "Roll Class", "Late Count", "Unjustified Late Arrival Dates", "Most Recent Completed Detention", "Active Detention", "Escalated"]],
+      head: [["Student ID", "Surname", "Given Name", "Year", "Roll Class", "Late Count", "Unjustified Late Arrival Dates", "Most Recent Completed Detention", "Active Detention"]],
       body: rows.map(row => [
         row.studentId,
         row.surname,
@@ -210,8 +194,7 @@ function exportAllStudentsReport() {
         row.lateCount,
         row.unjustifiedLateArrivalDates,
         row.mostRecentCompletedDetention,
-        row.currentActiveDetention,
-        row.escalated
+        row.currentActiveDetention
       ]),
       styles: { fontSize: 7 },
       columnStyles: {
@@ -403,8 +386,7 @@ function exportHistoryReport() {
       minutesLate: arrival.minutesLate ?? '',
       shorthand: arrival.shorthand || '',
       description: arrival.description || '',
-      detentionAssignedFor: student.activeDetention?.scheduledForDate || '',
-      escalated: student.escalated ? 'Yes' : 'No'
+      detentionAssignedFor: student.activeDetention?.scheduledForDate || ''
     }));
   });
 
@@ -418,8 +400,8 @@ function exportHistoryReport() {
     doc.text("Student Late Arrival History", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Student ID", "Surname", "Given Name", "Roll Class", "Date", "Arrival Time", "Minutes Late", "Shorthand", "Description", "Escalated"]],
-      body: historyRows.map(row => [row.studentId, row.surname, row.givenName, row.rollClass, row.date, row.arrivalTime, row.minutesLate, row.shorthand, row.description, row.escalated]),
+      head: [["Student ID", "Surname", "Given Name", "Roll Class", "Date", "Arrival Time", "Minutes Late", "Shorthand", "Description"]],
+      body: historyRows.map(row => [row.studentId, row.surname, row.givenName, row.rollClass, row.date, row.arrivalTime, row.minutesLate, row.shorthand, row.description]),
       styles: { fontSize: 8 }
     });
     doc.save(`student_history_${date}.pdf`);
@@ -430,144 +412,6 @@ function exportHistoryReport() {
   const sheet = XLSX.utils.json_to_sheet(historyRows);
   XLSX.utils.book_append_sheet(workbook, sheet, "Student History");
   XLSX.writeFile(workbook, `student_history_${date}.xlsx`);
-}
-
-async function exportEscalationSubsetReport(reportType) {
-  const date = getFormattedDate();
-  const rows = allStudents
-    .map(student => buildEscalationReportRow(student, reportType, date))
-    .filter(Boolean)
-    .sort((a, b) => a.Surname.localeCompare(b.Surname) || a["Given Name"].localeCompare(b["Given Name"]));
-
-  if (rows.length === 0) {
-    alert("No students matched that report.");
-    return;
-  }
-
-  const title = getEscalationReportTitle(reportType);
-  const filenamePrefix = getEscalationReportFilenamePrefix(reportType);
-
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, sheet, title.slice(0, 31));
-  XLSX.writeFile(workbook, `${filenamePrefix}_${date}.xlsx`);
-}
-
-function buildEscalationReportRow(student, reportType, reportDate) {
-  const criteria = getEscalationCriteria(student);
-  if (!matchesEscalationReport(criteria, reportType)) {
-    return null;
-  }
-
-  const lateArrivalDates = getUnjustifiedLateArrivalDates(student);
-
-  return {
-    "Report Generated Date": reportDate,
-    Surname: student.surname,
-    "Given Name": student.givenName,
-    Year: student.yearGroup || '',
-    "Roll Class": student.rollClass,
-    "Number of Late Arrivals": criteria.lateCount,
-    "Late Arrival Dates": lateArrivalDates.join(', '),
-    "Missed Detention Opportunities": criteria.missedOpportunityCount,
-    "Current Open Detention Due Date": student.activeDetention?.scheduledForDate || '',
-    "Matched Criteria": criteria.labels.join(', '),
-    "Escalation Reasons": formatReasons(student.escalationReasons)
-  };
-}
-
-function getEscalationReportTitle(reportType) {
-  if (reportType === "missed_detention_twice") {
-    return "Two or More Missed Detention Opportunities";
-  }
-
-  if (reportType === "late_count_over_five") {
-    return "Five or More Late Arrivals";
-  }
-
-  return "Combined Escalation Report";
-}
-
-function getEscalationReportFilenamePrefix(reportType) {
-  if (reportType === "missed_detention_twice") {
-    return "missed_two_detentions";
-  }
-
-  if (reportType === "late_count_over_five") {
-    return "late_five_or_more";
-  }
-
-  return "combined_escalation";
-}
-
-function getEscalationCriteria(student) {
-  const lateCount = getLateArrivalCount(student);
-  const missedOpportunityCount = getEscalationMissedOpportunityCount(student);
-  const hasOutstandingDetention = hasOutstandingDetentionObligation(student);
-  const missedTwice = hasOutstandingDetention && missedOpportunityCount >= 2;
-  const lateOverFive = lateCount >= 5;
-  const labels = [];
-
-  if (missedTwice) {
-    labels.push("Two or more missed detention opportunities");
-  }
-
-  if (lateOverFive) {
-    labels.push("Five or more late arrivals");
-  }
-
-  return {
-    missedTwice,
-    lateOverFive,
-    labels,
-    lateCount: lateOverFive ? Math.max(lateCount, 5) : lateCount,
-    missedOpportunityCount: missedTwice ? Math.max(missedOpportunityCount, 2) : missedOpportunityCount
-  };
-}
-
-function getEscalationMissedOpportunityCount(student) {
-  const activeDetention = student.activeDetention;
-  if (!activeDetention || activeDetention.status !== "open" || !hasOutstandingDetentionObligation(student)) {
-    return 0;
-  }
-
-  return getUnresolvedMissedOpportunityHistory(student).length;
-}
-
-function getUnresolvedMissedOpportunityHistory(student) {
-  const activeDetention = student.activeDetention;
-  const history = Array.isArray(student.detentionHistory)
-    ? student.detentionHistory
-    : [];
-  const mostRecentServedIndex = findMostRecentServedDetentionIndex(history);
-  const unresolvedHistory = history.slice(mostRecentServedIndex + 1);
-  const activeLateDate = activeDetention?.createdFromLateDate || "";
-
-  return unresolvedHistory.filter(entry => {
-    if (entry?.outcome !== "missed_while_present") {
-      return false;
-    }
-
-    if (activeLateDate && entry.lateDate && entry.lateDate !== activeLateDate) {
-      return false;
-    }
-
-    return true;
-  });
-}
-
-function parseLocalDate(dateText) {
-  const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  const [, year, month, day] = match;
-  return new Date(Number(year), Number(month) - 1, Number(day));
-}
-
-function matchesEscalationReport(criteria, reportType) {
-  if (reportType === "missed_detention_twice") return criteria.missedTwice;
-  if (reportType === "late_count_over_five") return criteria.lateOverFive;
-  return criteria.missedTwice || criteria.lateOverFive;
 }
 
 function resolveHistorySelection() {
@@ -866,9 +710,4 @@ function normalizeYearGroupValue(value) {
 
   const digits = text.match(/\d+/);
   return digits ? digits[0] : text;
-}
-
-function formatReasons(reasons) {
-  if (!reasons || reasons.length === 0) return 'No';
-  return reasons.join(', ');
 }

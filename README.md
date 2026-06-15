@@ -14,7 +14,7 @@ This section is the fast refresher for when you come back to the project later a
 
 ### What the whole system does
 
-The app tracks students who arrive late to school, assigns detention follow-up, records whether detention was served, and escalates students when certain attendance thresholds are reached.
+The app tracks students who arrive late to school, assigns detention follow-up, and records whether detention was served.
 
 The project has two parts:
 
@@ -51,8 +51,6 @@ So the system is not trying to ingest every attendance code. It is specifically 
 - `activeDetention`: the current open detention, if one exists
 - `detentionsServed`: how many detentions have been marked as completed
 - `truancyResolved`: whether the student currently has an open detention case
-- `escalated`: whether the student currently meets manual and/or automatic escalation conditions
-- `escalationCause`: human-readable reason for the current escalation
 
 ### How detention scheduling works
 
@@ -76,7 +74,7 @@ The Detentions page is where staff record that a student has successfully comple
 That page:
 
 - loads students with late-arrival history
-- allows filtering by year, search text, served state, and escalation state
+- allows filtering by year, search text, and served state
 - lets staff tick students and mark `Successfully Completed Detention`
 - increments `detentionsServed`
 - clears `activeDetention`
@@ -95,24 +93,6 @@ Instead, it waits for an `Attendance Confirmation Only` upload with full-day cov
 
 If there is no absence row, `missedWhilePresentCount` is recalculated from confirmed missed-detention history.
 
-### How escalation works
-
-Students can be escalated in two ways:
-
-- manually by staff on the Escalated Students page
-- automatically by backend rules
-
-Automatic escalation currently happens when:
-
-- the student has more than 5 late arrivals
-- the student has an open detention and has missed detention twice while present at school
-
-The backend stores:
-
-- `escalationReasons`: machine-readable reasons
-- `escalationCause`: readable text shown in the UI
-- `lastEscalationReasons` / `lastEscalationCause`: the most recent escalation cause, even after manual de-escalation
-
 ### How the website is normally used
 
 Typical daily flow:
@@ -122,8 +102,7 @@ Typical daily flow:
 3. Check the View Late Data page to review current unresolved late-arrival cases.
 4. Use the Mark Detention Roll page during detention to mark students who successfully complete detention.
 5. Use the green `Attendance Confirmation Only` upload with full-day or weekly absence data to confirm missed detentions.
-6. Use Escalated Students to review escalated cases, manually escalate or de-escalate students, and export the escalation list if needed.
-7. Use Reports when a formal export is needed.
+6. Use Reports when a formal export is needed.
 
 ### What to remember before changing anything
 
@@ -143,9 +122,9 @@ The project is deliberately split into a thin frontend and a logic-heavy backend
 Frontend responsibilities:
 
 - authenticate staff with Firebase Authentication
-- show workflow pages for uploads, late data, detentions, escalations, reports, and admin tasks
+- show workflow pages for uploads, late data, detentions, reports, analytics, and admin tasks
 - read student records from Firestore
-- write direct user-driven updates to Firestore for actions such as marking detention served or manually escalating a student
+- write direct user-driven updates to Firestore for actions such as marking detention served
 - send uploaded spreadsheets to the backend
 
 Backend responsibilities:
@@ -156,7 +135,7 @@ Backend responsibilities:
 - create or update late-arrival records
 - assign or re-schedule detentions
 - evaluate whether detention absences should count as missed while present
-- recalculate escalation state and escalation causes
+- recalculate resolution state from the current detention status
 - provide the secure admin purge endpoint
 
 This means frontend bugs usually affect presentation, workflow, or direct manual actions, while backend bugs usually affect the core attendance logic and automatic state calculation.
@@ -219,13 +198,6 @@ Important top-level fields:
 - `detentionsServed`
 - `detentionHistory`
 - `truancyResolved`
-- `escalated`
-- `escalationReasons`
-- `escalationCause`
-- `lastEscalationReasons`
-- `lastEscalationCause`
-- `manualEscalation`
-- `escalationSuppression`
 - audit fields such as `updatedAt`, `updatedBy`, `lastAction`
 
 Historically the code uses both `lateArrivals` and `truancies`. In practice they represent the same list of late-arrival records, and the frontend still reads `truancies` in several places for compatibility.
@@ -299,34 +271,6 @@ If any absence row was recorded:
 - `attendanceEvidence` is set to `absence_row_recorded_not_counted`
 - the detention is also re-scheduled
 
-### Escalation lifecycle
-
-Escalation is recalculated by the backend status logic and can also be triggered manually from the frontend.
-
-Current automatic reasons:
-
-- `late_count_over_five`
-- `missed_detention_twice`
-
-Manual reason:
-
-- `manual_escalation`
-
-The backend turns those reasons into:
-
-- `escalationReasons`: machine-readable list
-- `escalationCause`: readable text for UI/export use
-
-The Escalated Students page:
-
-- shows students currently escalated
-- displays the current escalation cause
-- allows manual escalation
-- allows manual de-escalation
-- exports the current list to PDF or Excel
-
-Manual de-escalation clears the current manual escalation state but keeps the most recent cause in `lastEscalationCause` / `lastEscalationReasons` for reference.
-
 ### Frontend page-by-page logic
 
 `index.html`
@@ -342,7 +286,7 @@ Manual de-escalation clears the current manual escalation state but keeps the mo
 `late-data.html` + `main.js`
 
 - shows unresolved late-arrival cases
-- supports search, sort, year filters, served visibility, and escalated visibility
+- supports search, sort, year filters, and served visibility
 - supports expanding each row to inspect the underlying unresolved late records
 
 `detentions.html` + `detentions.js`
@@ -352,14 +296,8 @@ Manual de-escalation clears the current manual escalation state but keeps the mo
 
 `reports.html` + `reports.js`
 
-- loads student data and exports summary, missed detention, history, and escalation reports
+- loads student data and exports summary, missed detention, and history reports
 - uses `jsPDF`, `jspdf-autotable`, and `SheetJS`
-
-`escalated.html` + `escalated.js`
-
-- used by staff to manage escalated students
-- shows current escalation cause and detention status
-- supports manual escalation, de-escalation, and exports
 
 `admin.html` + `admin.js`
 
@@ -423,7 +361,7 @@ When taking over the project, check these first:
    - late arrivals are detected
    - detention scheduling looks correct
    - detention completion works
-   - escalation causes appear correctly
+   - missed-detention confirmation works
    - exports still generate
 6. Review any recent changes to the Sentral export format before debugging the app logic.
 
@@ -494,14 +432,13 @@ What it does:
 - Marks due students who are not selected as absent from detention.
 - Lets staff manually toggle `truancyResolved`.
 - Lets staff undo a detention mark.
-- Lets staff hide served students or hide escalated students from the table.
+- Lets staff hide served students from the table.
 
 Important data fields used on this page:
 
 - `detentionsServed`
 - `lastDetentionServedDate`
 - `truancyResolved`
-- `escalated`
 
 ### `reports.html` + `reports.js`
 
@@ -513,27 +450,13 @@ What it does:
 - Lets the user choose PDF or Excel export for reports that support both formats.
 - Exports a school-wide summary report.
 - Exports missed detention records sorted by missed detention date.
-- Exports escalation reports for missed-detention and late-count thresholds.
 - Exports selected student late-arrival history.
-
-The two-missed-detentions escalation report only includes confirmed missed detention opportunities. Staff should run an `Attendance Confirmation Only` upload before relying on that report.
 
 Libraries used on this page:
 
 - `jsPDF`
 - `jspdf-autotable`
 - `SheetJS`
-
-### `escalated.html` + `escalated.js`
-
-This page handles manual escalation.
-
-What it does:
-
-- Loads all students from Firestore.
-- Shows the currently escalated students.
-- Lets the user search by student name or roll class.
-- Lets the user set `escalated: true` or `escalated: false` on a student document.
 
 ### `admin.html` + `admin.js`
 
@@ -568,7 +491,6 @@ Typical document shape:
   "detentionsServed": 1,
   "lastDetentionServedDate": "2026-04-01",
   "notes": "",
-  "escalated": false,
   "truancies": [
     {
       "date": "2026-03-31",
@@ -639,8 +561,6 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 - [`detentions.js`](./detentions.js): detention workflow logic
 - [`reports.html`](./reports.html): report export UI
 - [`reports.js`](./reports.js): PDF/Excel export logic
-- [`escalated.html`](./escalated.html): escalated students page
-- [`escalated.js`](./escalated.js): escalation search and update logic
 - [`admin.html`](./admin.html): admin control page
 - [`admin.js`](./admin.js): admin password gate and purge workflow
 - [`firebase.js`](./firebase.js): Firebase setup
@@ -653,9 +573,8 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 3. Review unresolved late arrivals on the View Late Data page.
 4. Move to the Detentions page to record served detentions.
 5. Use `Attendance Confirmation Only` with full-day or weekly absence data to confirm missed detentions.
-6. Use the Escalated page for students needing manual escalation.
-7. Use the Reports page to export summaries for staff use.
-8. Use the Admin page only for protected maintenance actions such as a full student-data purge.
+6. Use the Reports page to export summaries for staff use.
+7. Use the Admin page only for protected maintenance actions such as a full student-data purge.
 
 ## Maintenance Notes
 

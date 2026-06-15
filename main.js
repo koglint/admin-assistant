@@ -23,7 +23,6 @@ const searchInput = document.getElementById("truancy-search");
 const sortButtons = document.querySelectorAll(".sort-btn");
 const yearFilterButtons = document.querySelectorAll(".year-filter-btn");
 const tableStats = document.getElementById("table-stats");
-const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 
 const form = document.getElementById('upload-form');
@@ -37,7 +36,6 @@ let currentSortKey = "yearGroup";
 let sortAsc = true;
 let studentDataCache = [];
 let filteredStudentData = [];
-let showEscalated = false;
 let hideResolved = false;
 let yearFilterIsCustom = false;
 
@@ -121,14 +119,6 @@ yearFilterButtons.forEach(button => {
     applyFiltersAndRender();
   });
 });
-
-if (toggleEscalatedBtn) {
-  toggleEscalatedBtn.addEventListener("click", () => {
-    showEscalated = !showEscalated;
-    updateToggleButtons();
-    applyFiltersAndRender();
-  });
-}
 
 if (toggleResolvedBtn) {
   toggleResolvedBtn.addEventListener("click", () => {
@@ -261,7 +251,6 @@ async function loadTruancies() {
       totalHoursLate: (totalMinutesLate / 60).toFixed(2),
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
-      escalated: !!student.escalated,
       truancies: unresolved
     });
   });
@@ -276,7 +265,6 @@ function applyFiltersAndRender() {
 
   filteredStudentData = studentDataCache
     .filter(student => {
-      if (!showEscalated && student.escalated) return false;
       if (hideResolved && student.truancyResolved) return false;
       if (yearFilterButtons.length > 0 && !selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) return false;
 
@@ -304,14 +292,11 @@ function renderTable(data) {
     if (student.truancyResolved) {
       tr.classList.add("resolved-row");
     }
-    if (student.escalated) {
-      tr.classList.add("escalated-row", "disabled-row");
-    }
 
     tr.innerHTML = `
       <td data-label="Details"><button class="toggle-details" data-student-id="${student.studentId}">${expandedStudentIds.has(student.studentId) ? "&#9660;" : "&#9654;"}</button></td>
-      <td data-label="Given Name" class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
-      <td data-label="Surname" class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
+      <td data-label="Given Name">${student.givenName}</td>
+      <td data-label="Surname">${student.surname}</td>
       <td data-label="Year">${student.yearGroup || '-'}</td>
       <td data-label="Late Count">${student.truancyCount}</td>
       <td data-label="Roll Class">${student.rollClass}</td>
@@ -367,9 +352,8 @@ function updateStats() {
 
   const visibleCount = filteredStudentData.length;
   const resolvedCount = filteredStudentData.filter(student => student.truancyResolved).length;
-  const escalatedCount = filteredStudentData.filter(student => student.escalated).length;
 
-  tableStats.textContent = `${visibleCount} student(s) visible, ${resolvedCount} resolved, ${escalatedCount} escalated in this view.`;
+  tableStats.textContent = `${visibleCount} student(s) visible, ${resolvedCount} resolved in this view.`;
 }
 
 function updateSortButtons() {
@@ -391,10 +375,6 @@ function updateToggleButtons() {
     toggleResolvedBtn.textContent = hideResolved ? "Served Hidden" : "Served Visible";
   }
 
-  if (toggleEscalatedBtn) {
-    toggleEscalatedBtn.classList.toggle("active", showEscalated);
-    toggleEscalatedBtn.textContent = showEscalated ? "Escalated Shown" : "Escalated Hidden";
-  }
 }
 
 function getYearGroup(rollClass) {

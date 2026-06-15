@@ -108,8 +108,7 @@ async function loadStudents() {
       lateArrivals: Array.isArray(data.lateArrivals || data.truancies) ? (data.lateArrivals || data.truancies) : [],
       detentionsServed: data.detentionsServed || 0,
       detentionHistory: Array.isArray(data.detentionHistory) ? data.detentionHistory : [],
-      activeDetention: data.activeDetention || null,
-      escalated: !!data.escalated
+      activeDetention: data.activeDetention || null
     };
   });
 }
@@ -322,7 +321,6 @@ function buildAttemptRow(student, values) {
     yearGroup: student.yearGroup || "",
     rollClass: student.rollClass || "",
     lateCount: student.lateCount || 0,
-    escalated: student.escalated,
     ...values
   };
 }
@@ -348,8 +346,7 @@ function buildStudentRows(students, attempts) {
         scheduled: rows.length,
         served: rows.filter(row => row.outcome === "served").length,
         missedWhilePresent: rows.filter(row => row.outcome === "missed_while_present").length,
-        currentDetention: student.activeDetention?.scheduledForDate || "",
-        escalated: student.escalated ? "Yes" : "No"
+        currentDetention: student.activeDetention?.scheduledForDate || ""
       };
     })
     .filter(row => row.scheduled > 0 || row.currentDetention)
@@ -468,9 +465,8 @@ function renderStudentTable(rows) {
       <td>${row.served}</td>
       <td>${row.missedWhilePresent}</td>
       <td>${row.currentDetention ? formatDisplayDate(row.currentDetention) : "None"}</td>
-      <td>${row.escalated}</td>
     </tr>
-  `).join("") || '<tr><td colspan="9">No student detention activity found for this range.</td></tr>';
+  `).join("") || '<tr><td colspan="8">No student detention activity found for this range.</td></tr>';
 }
 
 function renderCharts(data) {
@@ -635,8 +631,8 @@ function exportPdf() {
   doc.text("Repeat Students", 14, 15);
   doc.autoTable({
     startY: 22,
-    head: [["Student", "Year", "Roll Class", "Late Count", "Scheduled", "Served", "Missed Present", "Current Detention", "Escalated"]],
-    body: analytics.studentRows.map(row => [row.studentName, row.yearGroup, row.rollClass, row.lateCount, row.scheduled, row.served, row.missedWhilePresent, row.currentDetention || "None", row.escalated]),
+    head: [["Student", "Year", "Roll Class", "Late Count", "Scheduled", "Served", "Missed Present", "Current Detention"]],
+    body: analytics.studentRows.map(row => [row.studentName, row.yearGroup, row.rollClass, row.lateCount, row.scheduled, row.served, row.missedWhilePresent, row.currentDetention || "None"]),
     styles: { fontSize: 8 }
   });
 
@@ -661,8 +657,7 @@ function exportExcel() {
     "Scheduled Attempts": row.scheduled,
     Served: row.served,
     "Missed While Present": row.missedWhilePresent,
-    "Current Detention": row.currentDetention || "None",
-    Escalated: row.escalated
+    "Current Detention": row.currentDetention || "None"
   }))), "Student Breakdown");
 
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(analytics.yearRows.map(row => ({

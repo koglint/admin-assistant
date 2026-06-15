@@ -27,7 +27,6 @@ const tableBody = document.getElementById("detention-body");
 const markPresentBtn = document.getElementById("mark-present-btn");
 const selectAllBtn = document.getElementById("select-all-btn");
 const unselectAllBtn = document.getElementById("unselect-all-btn");
-const toggleEscalatedBtn = document.getElementById("toggle-escalated-btn");
 const toggleResolvedBtn = document.getElementById("toggle-resolved-btn");
 const searchInput = document.getElementById("detention-search");
 const sortButtons = document.querySelectorAll(".sort-btn");
@@ -39,7 +38,6 @@ const diagnosticsStatus = document.getElementById("diagnostics-status");
 const SELECTION_STORAGE_KEY = "attendanceAssistant.detentionSelection";
 const YEAR_FILTER_OPTIONS = ["7", "8", "9", "10", "11", "12", "SRC"];
 
-let showEscalated = false;
 let hideResolved = true;
 let sortKey = "yearGroup";
 let sortDirection = "asc";
@@ -113,12 +111,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-toggleEscalatedBtn.addEventListener("click", () => {
-  showEscalated = !showEscalated;
-  updateToggleButtons();
-  applyFiltersAndRender();
-});
-
 toggleResolvedBtn.addEventListener("click", () => {
   hideResolved = !hideResolved;
   updateToggleButtons();
@@ -181,7 +173,6 @@ yearFilterButtons.forEach(button => {
 
 selectAllBtn.addEventListener("click", () => {
   filteredDetentionData.forEach(student => {
-    if (student.escalated) return;
     selectedStudentIds.add(student.studentId);
   });
   persistSelectedStudents();
@@ -198,8 +189,7 @@ markPresentBtn.addEventListener("click", async () => {
   const selectedIds = [...selectedStudentIds];
   const today = getLocalDateString();
   const studentsDueToday = filteredDetentionData.filter(student =>
-    !student.escalated
-    && student.activeDetention
+    student.activeDetention
     && student.activeDetention.status === "open"
     && student.activeDetention.scheduledForDate === today
   );
@@ -316,7 +306,6 @@ async function loadDetentionSummary() {
   let studentsWithTruancies = 0;
   let studentsWithoutTruancies = 0;
   let studentsHiddenByYearFilter = 0;
-  let studentsHiddenAsEscalated = 0;
   let studentsHiddenAsResolved = 0;
 
   snapshot.forEach(docSnap => {
@@ -342,14 +331,12 @@ async function loadDetentionSummary() {
       truancyCount: student.truancyCount || 0,
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
-      escalated: !!student.escalated,
       activeDetention: student.activeDetention || null
     });
   });
 
   detentionDataCache.forEach(student => {
     if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) studentsHiddenByYearFilter += 1;
-    if (!showEscalated && student.escalated) studentsHiddenAsEscalated += 1;
     if (hideResolved && student.truancyResolved) studentsHiddenAsResolved += 1;
   });
 
@@ -360,10 +347,8 @@ async function loadDetentionSummary() {
     studentsCachedForDetentionPage: detentionDataCache.length,
     filters: {
       selectedYearFilters: [...selectedYearFilters],
-      showEscalated,
       hideResolved,
       studentsHiddenByYearFilter,
-      studentsHiddenAsEscalated,
       studentsHiddenAsResolved
     }
   });
@@ -394,7 +379,6 @@ function applyFiltersAndRender() {
 
   filteredDetentionData = detentionDataCache
     .filter(student => {
-      if (!showEscalated && student.escalated) return false;
       if (hideResolved && student.truancyResolved) return false;
       if (!selectedYearFilters.has(String(student.yearGroup || "").toUpperCase())) return false;
 
@@ -482,14 +466,10 @@ function renderDetentionTable(data) {
     const tr = document.createElement("tr");
     tr.setAttribute("data-resolved", student.truancyResolved);
 
-    if (student.escalated) {
-      tr.classList.add("escalated-row", "disabled-row");
-    }
-
     tr.innerHTML = `
-      <td data-label="Select"><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""} ${student.escalated ? "disabled" : ""}></td>
-      <td data-label="Given Name" class="${student.escalated ? "greyed-name" : ""}">${student.givenName}</td>
-      <td data-label="Surname" class="${student.escalated ? "greyed-name" : ""}">${student.surname}</td>
+      <td data-label="Select"><input type="checkbox" class="select-student" data-student-id="${student.studentId}" ${selectedStudentIds.has(student.studentId) ? "checked" : ""}></td>
+      <td data-label="Given Name">${student.givenName}</td>
+      <td data-label="Surname">${student.surname}</td>
       <td data-label="Year">${student.yearGroup || '-'}</td>
       <td data-label="Roll Class">${student.rollClass}</td>
       <td data-label="Last Late">${student.latestDate}</td>
@@ -521,7 +501,6 @@ function updateStats() {
       selectedVisibleCount,
       searchTextLength: searchInput.value.trim().length,
       selectedYearFilters: [...selectedYearFilters],
-      showEscalated,
       hideResolved
     });
   }
@@ -564,9 +543,6 @@ function updateSortableHeaders() {
 function updateToggleButtons() {
   toggleResolvedBtn.classList.toggle("active", hideResolved);
   toggleResolvedBtn.textContent = hideResolved ? "Served Hidden" : "Served Visible";
-
-  toggleEscalatedBtn.classList.toggle("active", showEscalated);
-  toggleEscalatedBtn.textContent = showEscalated ? "Escalated Shown" : "Escalated Hidden";
 }
 
 function updateYearFilterButtons() {
@@ -703,8 +679,6 @@ async function markSelectedPresent(selectedIds) {
       if (!snap.exists()) return false;
 
       const data = snap.data();
-      if (data?.escalated) return false;
-
       const activeDetention = data.activeDetention;
       if (!activeDetention || activeDetention.status !== "open") {
         return false;
@@ -751,8 +725,6 @@ async function markMissedDetentions(missedStudents, rollDate) {
         if (!snap.exists()) return false;
 
         const data = snap.data();
-        if (data?.escalated) return false;
-
         const activeDetention = data.activeDetention;
         if (!activeDetention || activeDetention.status !== "open") return false;
         if (activeDetention.scheduledForDate !== rollDate) return false;
