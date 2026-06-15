@@ -157,7 +157,7 @@ tableHeaders.forEach((header, idx) => {
       "givenName",
       "surname",
       "yearGroup",
-      "truancyCount",
+      "lateCount",
       "rollClass",
       "latestDate",
       "arrivalTime",
@@ -229,9 +229,9 @@ async function loadTruancies() {
     const student = docSnap.data();
     const studentId = docSnap.id;
 
-    if (!Array.isArray(student.truancies) || student.truancies.length === 0) return;
+    if (!Array.isArray(student.lateArrivals) || student.lateArrivals.length === 0) return;
 
-    const unresolved = student.truancies.filter(t => !t.justified);
+    const unresolved = student.lateArrivals.filter(t => !t.justified);
     if (unresolved.length === 0) return;
 
     const latest = [...unresolved].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
@@ -242,7 +242,7 @@ async function loadTruancies() {
       givenName: student.givenName || "",
       surname: student.surname || "",
       yearGroup: resolveYearGroup(student),
-      truancyCount: unresolved.length,
+      lateCount: unresolved.length,
       rollClass: student.rollClass || "",
       latestDate: latest?.date ?? '-',
       arrivalTime: latest?.arrivalTime ?? '-',
@@ -251,7 +251,7 @@ async function loadTruancies() {
       totalHoursLate: (totalMinutesLate / 60).toFixed(2),
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
-      truancies: unresolved
+      lateArrivals: unresolved
     });
   });
 
@@ -298,7 +298,7 @@ function renderTable(data) {
       <td data-label="Given Name">${student.givenName}</td>
       <td data-label="Surname">${student.surname}</td>
       <td data-label="Year">${student.yearGroup || '-'}</td>
-      <td data-label="Late Count">${student.truancyCount}</td>
+      <td data-label="Late Count">${student.lateCount}</td>
       <td data-label="Roll Class">${student.rollClass}</td>
       <td data-label="Last Late">${student.latestDate}</td>
       <td data-label="Last Arrival">${student.arrivalTime}</td>
@@ -327,7 +327,7 @@ function renderTable(data) {
             <tr><th>Date</th><th>Arrival</th><th>Minutes Late</th><th>Explainer</th><th>Explainer Source</th><th>Description</th><th>Comment</th></tr>
           </thead>
           <tbody>
-            ${student.truancies.map(t => `
+            ${student.lateArrivals.map(t => `
               <tr>
                 <td data-label="Date">${t.date}</td>
                 <td data-label="Arrival">${t.arrivalTime || '-'}</td>
@@ -386,10 +386,10 @@ function resolveYearGroup(student) {
   const explicitYear = normalizeYearGroupValue(student.yearGroup);
   if (explicitYear) return explicitYear;
 
-  const truancyYear = Array.isArray(student.truancies)
-    ? student.truancies.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+  const lateArrivalYear = Array.isArray(student.lateArrivals)
+    ? student.lateArrivals.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
     : '';
-  if (truancyYear) return truancyYear;
+  if (lateArrivalYear) return lateArrivalYear;
 
   return getYearGroup(student.rollClass || '');
 }

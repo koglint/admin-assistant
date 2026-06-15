@@ -104,8 +104,8 @@ async function loadStudents() {
       surname: data.surname || "",
       rollClass: data.rollClass || "",
       yearGroup: resolveYearGroup(data),
-      lateCount: data.lateCount || data.truancyCount || 0,
-      lateArrivals: Array.isArray(data.lateArrivals || data.truancies) ? (data.lateArrivals || data.truancies) : [],
+      lateCount: data.lateCount || 0,
+      lateArrivals: Array.isArray(data.lateArrivals) ? data.lateArrivals : [],
       detentionsServed: data.detentionsServed || 0,
       detentionHistory: Array.isArray(data.detentionHistory) ? data.detentionHistory : [],
       activeDetention: data.activeDetention || null
@@ -779,7 +779,7 @@ function resolveYearGroup(student) {
   const explicitYear = normalizeYearGroupValue(student.yearGroup);
   if (explicitYear) return explicitYear;
 
-  const lateArrivals = student.lateArrivals || student.truancies || [];
+  const lateArrivals = student.lateArrivals || [];
   const lateYear = Array.isArray(lateArrivals)
     ? lateArrivals.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
     : "";

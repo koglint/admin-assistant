@@ -47,7 +47,7 @@ So the system is not trying to ingest every attendance code. It is specifically 
 
 - `arrivalTime`: taken from the right side of the spreadsheet `Time` range
 - `minutesLate`: calculated against `8:35AM`
-- `lateCount` / `truancyCount`: total stored late-arrival records for that student
+- `lateCount`: total stored late-arrival records for that student
 - `activeDetention`: the current open detention, if one exists
 - `detentionsServed`: how many detentions have been marked as completed
 - `truancyResolved`: whether the student currently has an open detention case
@@ -192,15 +192,13 @@ Document ID:
 Important top-level fields:
 
 - `givenName`, `surname`, `rollClass`, `yearGroup`
-- `lateArrivals` and `truancies`
-- `lateCount` and `truancyCount`
+- `lateArrivals`
+- `lateCount`
 - `activeDetention`
 - `detentionsServed`
 - `detentionHistory`
 - `truancyResolved`
 - audit fields such as `updatedAt`, `updatedBy`, `lastAction`
-
-Historically the code uses both `lateArrivals` and `truancies`. In practice they represent the same list of late-arrival records, and the frontend still reads `truancies` in several places for compatibility.
 
 ### Late-arrival record model
 
@@ -370,7 +368,7 @@ When taking over the project, check these first:
 The full system is split into two repositories:
 
 - This repo, `Admin-assistant`, is the user interface.
-- The companion repo, `admin-assistant-backend`, accepts uploaded Excel files and writes structured truancy data into Firestore.
+- The companion repo, `admin-assistant-backend`, accepts uploaded Excel files and writes structured late-arrival data into Firestore.
 
 The browser talks to two external services:
 
@@ -426,8 +424,8 @@ This page is used to manage detention follow-up.
 
 What it does:
 
-- Loads all students with truancy records.
-- Shows latest late date, total truancy count, detention count, and current resolution status.
+- Loads all students with late-arrival records.
+- Shows latest late date, total late count, detention count, and current resolution status.
 - Lets staff select multiple students and mark them as present for detention.
 - Marks due students who are not selected as absent from detention.
 - Lets staff manually toggle `truancyResolved`.
@@ -486,12 +484,12 @@ Typical document shape:
   "givenName": "Jane",
   "surname": "Citizen",
   "rollClass": "10.2",
-  "truancyCount": 2,
+  "lateCount": 2,
   "truancyResolved": false,
   "detentionsServed": 1,
   "lastDetentionServedDate": "2026-04-01",
   "notes": "",
-  "truancies": [
+  "lateArrivals": [
     {
       "date": "2026-03-31",
       "description": "unjustified late arrival",
@@ -511,7 +509,7 @@ Typical document shape:
 Notes:
 
 - The frontend treats `truancyResolved` as the source of truth for whether the current case is resolved.
-- Individual truancy records are displayed in the details table, but page-level workflow is based on the student document status.
+- Individual late-arrival records are displayed in the details table, but page-level workflow is based on the student document status.
 
 ## Authentication And Access
 
@@ -556,7 +554,7 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 ## Key Files
 
 - [`index.html`](./index.html): home page and upload screen
-- [`main.js`](./main.js): current truancy list and upload flow
+- [`main.js`](./main.js): current late-arrival list and upload flow
 - [`detentions.html`](./detentions.html): detention tracking page
 - [`detentions.js`](./detentions.js): detention workflow logic
 - [`reports.html`](./reports.html): report export UI

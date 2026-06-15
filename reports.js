@@ -85,10 +85,10 @@ async function loadStudents() {
       givenName: data.givenName || '',
       rollClass: data.rollClass || '',
       yearGroup: resolveYearGroup(data),
-      lateCount: data.lateCount || data.truancyCount || 0,
+      lateCount: data.lateCount || 0,
       detentionsServed: data.detentionsServed || 0,
       detentionHistory: data.detentionHistory || [],
-      lateArrivals: data.lateArrivals || data.truancies || [],
+      lateArrivals: data.lateArrivals || [],
       activeDetention: data.activeDetention || null
     };
   }).sort((a, b) => a.surname.localeCompare(b.surname) || a.givenName.localeCompare(b.givenName));
@@ -692,10 +692,10 @@ function resolveYearGroup(student) {
   const explicitYear = normalizeYearGroupValue(student.yearGroup);
   if (explicitYear) return explicitYear;
 
-  const truancyYear = Array.isArray(student.lateArrivals || student.truancies)
-    ? (student.lateArrivals || student.truancies).map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+  const lateArrivalYear = Array.isArray(student.lateArrivals)
+    ? student.lateArrivals.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
     : '';
-  if (truancyYear) return truancyYear;
+  if (lateArrivalYear) return lateArrivalYear;
 
   return getYearGroup(student.rollClass || '');
 }

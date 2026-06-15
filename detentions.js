@@ -303,8 +303,8 @@ async function loadDetentionSummary() {
     return;
   }
 
-  let studentsWithTruancies = 0;
-  let studentsWithoutTruancies = 0;
+  let studentsWithLateArrivals = 0;
+  let studentsWithoutLateArrivals = 0;
   let studentsHiddenByYearFilter = 0;
   let studentsHiddenAsResolved = 0;
 
@@ -312,14 +312,14 @@ async function loadDetentionSummary() {
     const student = docSnap.data();
     const id = docSnap.id;
 
-    if (!Array.isArray(student.truancies) || student.truancies.length === 0) {
-      studentsWithoutTruancies += 1;
+    if (!Array.isArray(student.lateArrivals) || student.lateArrivals.length === 0) {
+      studentsWithoutLateArrivals += 1;
       return;
     }
 
-    studentsWithTruancies += 1;
+    studentsWithLateArrivals += 1;
 
-    const latest = [...student.truancies].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const latest = [...student.lateArrivals].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
     detentionDataCache.push({
       studentId: id,
@@ -328,7 +328,7 @@ async function loadDetentionSummary() {
       rollClass: student.rollClass || "",
       yearGroup: resolveYearGroup(student),
       latestDate: latest?.date ?? '-',
-      truancyCount: student.truancyCount || 0,
+      lateCount: student.lateCount || 0,
       detentionsServed: student.detentionsServed || 0,
       truancyResolved: student.truancyResolved === true,
       activeDetention: student.activeDetention || null
@@ -342,8 +342,8 @@ async function loadDetentionSummary() {
 
   console.info("[Detention diagnostics] Firestore students read succeeded", {
     totalDocs: snapshot.size,
-    studentsWithTruancies,
-    studentsWithoutTruancies,
+    studentsWithLateArrivals,
+    studentsWithoutLateArrivals,
     studentsCachedForDetentionPage: detentionDataCache.length,
     filters: {
       selectedYearFilters: [...selectedYearFilters],
@@ -352,7 +352,7 @@ async function loadDetentionSummary() {
       studentsHiddenAsResolved
     }
   });
-  setDiagnostics(`Firestore read succeeded for ${auth.currentUser?.email || "current user"}: ${snapshot.size} student document(s), ${studentsWithTruancies} with truancy records before filters.`);
+  setDiagnostics(`Firestore read succeeded for ${auth.currentUser?.email || "current user"}: ${snapshot.size} student document(s), ${studentsWithLateArrivals} with late-arrival records before filters.`);
   applyFiltersAndRender();
 }
 
@@ -429,7 +429,7 @@ function compareStudents(a, b) {
 }
 
 function normalizeSortValue(value, key) {
-  if (["truancyCount", "detentionsServed"].includes(key)) {
+  if (["lateCount", "detentionsServed"].includes(key)) {
     return Number(value) || 0;
   }
 
@@ -473,7 +473,7 @@ function renderDetentionTable(data) {
       <td data-label="Year">${student.yearGroup || '-'}</td>
       <td data-label="Roll Class">${student.rollClass}</td>
       <td data-label="Last Late">${student.latestDate}</td>
-      <td data-label="Late Count">${student.truancyCount}</td>
+      <td data-label="Late Count">${student.lateCount}</td>
       <td data-label="Detentions Served">${student.detentionsServed}</td>
       <td data-label="Resolved">
         <span class="status-pill ${student.truancyResolved ? "status-ok" : "status-pending"} toggle-resolved" data-id="${student.studentId}" data-current="${student.truancyResolved}">
@@ -590,10 +590,10 @@ function resolveYearGroup(student) {
   const explicitYear = normalizeYearGroupValue(student.yearGroup);
   if (explicitYear) return explicitYear;
 
-  const truancyYear = Array.isArray(student.truancies)
-    ? student.truancies.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
+  const lateArrivalYear = Array.isArray(student.lateArrivals)
+    ? student.lateArrivals.map(entry => normalizeYearGroupValue(entry.yearGroup)).find(Boolean)
     : "";
-  if (truancyYear) return truancyYear;
+  if (lateArrivalYear) return lateArrivalYear;
 
   return getYearGroup(student.rollClass || "");
 }
