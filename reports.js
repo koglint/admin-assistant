@@ -603,41 +603,28 @@ function buildMissedDetentionNoticeRows() {
 
 function buildTwoMissedDetentionsRows() {
   return allStudents
-    .map(student => {
-      const missedCount = getCurrentMissedDetentionCount(student);
-      return {
-        student,
-        missedCount
-      };
-    })
-    .filter(row => row.missedCount >= 2)
-    .sort((a, b) =>
-      compareYearGroups(a.student.yearGroup, b.student.yearGroup) ||
-      a.student.surname.localeCompare(b.student.surname) ||
-      a.student.givenName.localeCompare(b.student.givenName)
+    .filter(student =>
+      student.activeDetention?.status === "open"
+      && Number(student.activeDetention?.missedWhilePresentCount || 0) >= 2
     )
-    .map(({ student, missedCount }) => ({
+    .sort((a, b) =>
+      compareYearGroups(a.yearGroup, b.yearGroup) ||
+      a.surname.localeCompare(b.surname) ||
+      a.givenName.localeCompare(b.givenName)
+    )
+    .map(student => ({
       "Student ID": student.studentId,
       Surname: student.surname,
       "Given Name": student.givenName,
       Year: student.yearGroup || "",
       "Roll Class": student.rollClass,
-      "Current Missed Detentions": missedCount,
+      "Current Missed Detentions": Number(student.activeDetention?.missedWhilePresentCount || 0),
       "Date of Most Recent Late Arrival": getLatestLateArrivalDate(student),
       "Number of Late Arrivals": getLateArrivalCount(student),
       "Number of Late Detentions Served": getDetentionsServedCount(student),
       "Next Scheduled Detention": student.activeDetention?.scheduledForDate || "",
       "Pending Attendance Check Date": student.activeDetention?.pendingAttendanceCheckDate || ""
     }));
-}
-
-function getCurrentMissedDetentionCount(student) {
-  if (!hasOutstandingDetentionObligation(student)) {
-    return 0;
-  }
-
-  const activeCount = Number(student.activeDetention?.missedWhilePresentCount || 0);
-  return Math.max(activeCount, getOutstandingMissedDetentionHistory(student).length);
 }
 
 function getMissedDetentionNoticeText() {
