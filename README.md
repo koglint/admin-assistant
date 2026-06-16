@@ -98,10 +98,9 @@ Typical daily flow:
 
 1. Sign in with the school Google account.
 2. Use the blue `Morning Late Arrivals` upload with today's morning Sentral absence export.
-3. Check the View Late Data page to review current unresolved late-arrival cases.
-4. Use the Mark Detention Roll page during detention to mark students who successfully complete detention.
-5. Use the green `Attendance Confirmation Only` upload with full-day or weekly absence data to confirm missed detentions.
-6. Use Reports when a formal export is needed.
+3. Use the Mark Detention Roll page during detention to mark students who successfully complete detention.
+4. Use the green `Attendance Confirmation Only` upload with full-day or weekly absence data to confirm missed detentions.
+5. Use Reports when a formal export is needed.
 
 ### What to remember before changing anything
 
@@ -121,7 +120,7 @@ The project is deliberately split into a thin frontend and a logic-heavy backend
 Frontend responsibilities:
 
 - authenticate staff with Firebase Authentication
-- show workflow pages for uploads, late data, detentions, reports, analytics, and admin tasks
+- show workflow pages for uploads, detentions, reports, and admin tasks
 - read student records from Firestore
 - write direct user-driven updates to Firestore for actions such as marking detention served
 - send uploaded spreadsheets to the backend
@@ -152,7 +151,7 @@ The end-to-end upload flow works like this:
 7. The backend updates the relevant student documents in Firestore.
 8. The frontend reloads from Firestore and shows the new state.
 
-The frontend does not parse the spreadsheet itself. It only shows results and performs manual workflow actions.
+The frontend does not parse the spreadsheet itself. It only shows upload summaries, reads Firestore for workflow pages, and performs manual workflow actions.
 
 ### Spreadsheet parsing rules
 
@@ -176,7 +175,7 @@ The parser normalizes:
 - date values
 - year values
 - time range values
-- optional comments/explainers
+- optional source columns used by the backend parser
 
 If those spreadsheet headers change, parsing will likely break or silently mis-classify records.
 
@@ -204,16 +203,10 @@ Each late-arrival entry can contain:
 
 - `date`
 - `description`
-- `comment`
 - `justified`
-- `resolved`
-- `explainer`
-- `explainerSource`
-- `detentionIssued`
 - `arrivalTime`
 - `minutesLate`
 - `shorthand`
-- `timeRange`
 - `yearGroup`
 
 The current duplicate rule is date-based: if the student already has a late record for the same date, a second one is not added. That is simple and works for the current use case, but it would need redesign if multiple distinct same-day late events ever had to be preserved separately.
@@ -268,18 +261,12 @@ If any absence row was recorded:
 `index.html`
 
 - signed-out state shows a large sign-in button and a short instruction
-- signed-in state shows the six main action buttons and sign-out
+- signed-in state shows the main action buttons and sign-out
 
 `upload-data.html` + `main.js`
 
 - handles spreadsheet uploads
 - displays the backend processing summary
-
-`late-data.html` + `main.js`
-
-- shows unresolved late-arrival cases
-- supports search, sort, year filters, and served visibility
-- supports expanding each row to inspect the underlying unresolved late records
 
 `detentions.html` + `detentions.js`
 
@@ -406,12 +393,6 @@ The backend still decides what the file proves from the spreadsheet contents:
 - confirmation uploads can contain daily or weekly full-day data
 - detention absence checks stay pending until a confirmation upload contains enough day coverage to resolve them
 
-### `late-data.html` + `main.js`
-
-This page shows the current late-arrivals table.
-
-The late-data table is affected by `Morning Late Arrivals` uploads. `Attendance Confirmation Only` uploads update detention evidence but do not add new late arrivals.
-
 ### `detentions.html` + `detentions.js`
 
 This page is used to manage detention follow-up.
@@ -485,14 +466,11 @@ Typical document shape:
     {
       "date": "2026-03-31",
       "description": "unjustified late arrival",
-      "comment": "",
       "justified": false,
-      "resolved": false,
-      "explainer": "",
-      "explainerSource": "",
-      "detentionIssued": false,
       "arrivalTime": "09:04",
-      "minutesLate": 29
+      "minutesLate": 29,
+      "shorthand": "U",
+      "yearGroup": "10"
     }
   ]
 }
@@ -501,7 +479,7 @@ Typical document shape:
 Notes:
 
 - The frontend derives whether the current case is resolved from `activeDetention`.
-- Individual late-arrival records are displayed in the details table, but page-level workflow is based on the student document status.
+- Reports and detention roll views use late-arrival records for dates, counts, arrival details, and year fallback.
 
 ## Authentication And Access
 
@@ -545,8 +523,8 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 
 ## Key Files
 
-- [`index.html`](./index.html): home page and upload screen
-- [`main.js`](./main.js): current late-arrival list and upload flow
+- [`index.html`](./index.html): home page
+- [`main.js`](./main.js): authentication and upload flow
 - [`detentions.html`](./detentions.html): detention tracking page
 - [`detentions.js`](./detentions.js): detention workflow logic
 - [`reports.html`](./reports.html): report export UI
@@ -560,11 +538,10 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 
 1. Sign in on the home page.
 2. Use `Morning Late Arrivals` on the Upload Attendance Data page with today's morning absence export.
-3. Review unresolved late arrivals on the View Late Data page.
-4. Move to the Detentions page to record served detentions.
-5. Use `Attendance Confirmation Only` with full-day or weekly absence data to confirm missed detentions.
-6. Use the Reports page to export summaries for staff use.
-7. Use the Admin page only for protected maintenance actions such as a full student-data purge.
+3. Move to the Detentions page to record served detentions.
+4. Use `Attendance Confirmation Only` with full-day or weekly absence data to confirm missed detentions.
+5. Use the Reports page to export summaries for staff use.
+6. Use the Admin page only for protected maintenance actions such as a full student-data purge.
 
 ## Maintenance Notes
 

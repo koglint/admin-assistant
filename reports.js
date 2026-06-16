@@ -24,6 +24,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
+const exportTwoMissedDetentionsBtn = document.getElementById("export-two-missed-detentions");
 
 let allStudents = [];
 const attendanceDaysByKey = new Map();
@@ -56,6 +57,10 @@ onAuthStateChanged(auth, async user => {
 
 generateMissedDetentionPdfBtn.addEventListener("click", async () => {
   await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
+});
+
+exportTwoMissedDetentionsBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(exportTwoMissedDetentionsBtn, "Exporting...", exportTwoMissedDetentionsList);
 });
 
 async function runWithButtonLoading(button, loadingText, action) {
@@ -321,6 +326,20 @@ async function exportMissedDetentionNoticePdf() {
   doc.save(`missed-detention-notices-${date}.pdf`);
 }
 
+async function exportTwoMissedDetentionsList() {
+  const rows = buildTwoMissedDetentionsRows();
+
+  if (rows.length === 0) {
+    alert("No students currently have two or more outstanding missed detentions.");
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Two Or More Missed");
+  XLSX.writeFile(workbook, `students_two_or_more_missed_detentions_${getFormattedDate()}.xlsx`);
+}
+
 async function hydrateAttendanceDaysForMissedDetentionReport() {
   const pairs = [];
 
@@ -580,6 +599,45 @@ function buildMissedDetentionNoticeRows() {
   });
 
   return [...studentsById.values()];
+}
+
+function buildTwoMissedDetentionsRows() {
+  return allStudents
+    .map(student => {
+      const missedCount = getCurrentMissedDetentionCount(student);
+      return {
+        student,
+        missedCount
+      };
+    })
+    .filter(row => row.missedCount >= 2)
+    .sort((a, b) =>
+      compareYearGroups(a.student.yearGroup, b.student.yearGroup) ||
+      a.student.surname.localeCompare(b.student.surname) ||
+      a.student.givenName.localeCompare(b.student.givenName)
+    )
+    .map(({ student, missedCount }) => ({
+      "Student ID": student.studentId,
+      Surname: student.surname,
+      "Given Name": student.givenName,
+      Year: student.yearGroup || "",
+      "Roll Class": student.rollClass,
+      "Current Missed Detentions": missedCount,
+      "Date of Most Recent Late Arrival": getLatestLateArrivalDate(student),
+      "Number of Late Arrivals": getLateArrivalCount(student),
+      "Number of Late Detentions Served": getDetentionsServedCount(student),
+      "Next Scheduled Detention": student.activeDetention?.scheduledForDate || "",
+      "Pending Attendance Check Date": student.activeDetention?.pendingAttendanceCheckDate || ""
+    }));
+}
+
+function getCurrentMissedDetentionCount(student) {
+  if (!hasOutstandingDetentionObligation(student)) {
+    return 0;
+  }
+
+  const activeCount = Number(student.activeDetention?.missedWhilePresentCount || 0);
+  return Math.max(activeCount, getOutstandingMissedDetentionHistory(student).length);
 }
 
 function getMissedDetentionNoticeText() {
