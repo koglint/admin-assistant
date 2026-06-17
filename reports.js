@@ -16,18 +16,13 @@ const jsPDF = window.jspdf.jsPDF;
 import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/+esm';
 import * as XLSX from 'https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs';
 
-const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
-const ATTENDANCE_DAY_LOOKUP_URL = `${BACKEND_BASE_URL}/attendance-days/lookup`;
-
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
-const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
-const exportTwoMissedDetentionsBtn = document.getElementById("export-two-missed-detentions");
+const exportOutstandingDetentionsBtn = document.getElementById("export-outstanding-detentions");
 
 let allStudents = [];
-const attendanceDaysByKey = new Map();
 const selectedStudentIds = new Set();
 
 loginBtn.onclick = async () => {
@@ -55,12 +50,8 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-generateMissedDetentionPdfBtn.addEventListener("click", async () => {
-  await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
-});
-
-exportTwoMissedDetentionsBtn.addEventListener("click", async () => {
-  await runWithButtonLoading(exportTwoMissedDetentionsBtn, "Exporting...", exportTwoMissedDetentionsList);
+exportOutstandingDetentionsBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(exportOutstandingDetentionsBtn, "Exporting...", exportOutstandingDetentionsList);
 });
 
 async function runWithButtonLoading(button, loadingText, action) {
@@ -80,10 +71,12 @@ async function runWithButtonLoading(button, loadingText, action) {
 
 async function loadStudents() {
   const studentSnapshot = await getDocs(collection(db, "students"));
-  attendanceDaysByKey.clear();
 
   allStudents = studentSnapshot.docs.map(docSnap => {
     const data = docSnap.data();
+    const detentions = getDetentionLedger(data);
+    const detentionServedEvents = getDetentionServedEvents(data);
+    const detentionStatus = buildDetentionStatus(detentions, detentionServedEvents);
     return {
       studentId: docSnap.id,
       surname: data.surname || '',
@@ -94,7 +87,10 @@ async function loadStudents() {
       detentionsServed: data.detentionsServed || 0,
       detentionHistory: data.detentionHistory || [],
       lateArrivals: data.lateArrivals || [],
-      activeDetention: data.activeDetention || null
+      activeDetention: data.activeDetention || null,
+      detentions,
+      detentionServedEvents,
+      detentionStatus
     };
   }).sort((a, b) => a.surname.localeCompare(b.surname) || a.givenName.localeCompare(b.givenName));
 }
@@ -143,7 +139,8 @@ function exportSummaryReport() {
     rollClass: student.rollClass,
     lateCount: student.lateCount,
     detentionsServed: student.detentionsServed,
-    activeDetention: student.activeDetention?.scheduledForDate || 'None'
+    outstandingDetentions: student.detentionStatus?.outstandingCount || 0,
+    oldestOutstandingDetention: student.detentionStatus?.oldestOutstandingDetentionDate || 'None'
   }));
 
   if (exportFormat.value === "pdf") {
@@ -151,8 +148,8 @@ function exportSummaryReport() {
     doc.text("Attendance Assistant Summary Report", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Surname", "Given Name", "Roll Class", "Late Count", "Detentions Served", "Active Detention"]],
-      body: rows.map(row => [row.surname, row.givenName, row.rollClass, row.lateCount, row.detentionsServed, row.activeDetention]),
+      head: [["Surname", "Given Name", "Roll Class", "Late Count", "Detentions Served", "Outstanding Detentions", "Oldest Outstanding"]],
+      body: rows.map(row => [row.surname, row.givenName, row.rollClass, row.lateCount, row.detentionsServed, row.outstandingDetentions, row.oldestOutstandingDetention]),
       styles: { fontSize: 8 }
     });
     doc.save(`attendance_summary_${date}.pdf`);
@@ -176,7 +173,8 @@ function exportAllStudentsReport() {
     lateCount: student.lateCount,
     unjustifiedLateArrivalDates: getUnjustifiedLateArrivalDates(student).join(', '),
     mostRecentCompletedDetention: getMostRecentCompletedDetentionDate(student) || '',
-    currentActiveDetention: student.activeDetention?.scheduledForDate || ''
+    outstandingDetentions: student.detentionStatus?.outstandingCount || 0,
+    oldestOutstandingDetention: student.detentionStatus?.oldestOutstandingDetentionDate || ''
   }));
 
   if (rows.length === 0) {
@@ -189,7 +187,7 @@ function exportAllStudentsReport() {
     doc.text("All Students Register", 14, 15);
     doc.autoTable({
       startY: 22,
-      head: [["Student ID", "Surname", "Given Name", "Year", "Roll Class", "Late Count", "Unjustified Late Arrival Dates", "Most Recent Completed Detention", "Active Detention"]],
+      head: [["Student ID", "Surname", "Given Name", "Year", "Roll Class", "Late Count", "Unjustified Late Arrival Dates", "Most Recent Completed Detention", "Outstanding Detentions", "Oldest Outstanding"]],
       body: rows.map(row => [
         row.studentId,
         row.surname,
@@ -199,7 +197,8 @@ function exportAllStudentsReport() {
         row.lateCount,
         row.unjustifiedLateArrivalDates,
         row.mostRecentCompletedDetention,
-        row.currentActiveDetention
+        row.outstandingDetentions,
+        row.oldestOutstandingDetention
       ]),
       styles: { fontSize: 7 },
       columnStyles: {
@@ -217,172 +216,17 @@ function exportAllStudentsReport() {
   XLSX.writeFile(workbook, `all_students_register_${date}.xlsx`);
 }
 
-async function exportHistoricMissedDetentionEventsReport() {
-  await hydrateAttendanceDaysForMissedDetentionReport();
-  exportMissedDetentionEventsReport({
-    title: "Historic Missed Detentions Report",
-    rows: buildHistoricMissedDetentionRows(),
-    emptyMessage: "No historic missed detention records were found.",
-    filenamePrefix: "historic_missed_detentions"
-  });
-}
-
-async function exportOutstandingMissedDetentionEventsReport() {
-  await hydrateAttendanceDaysForMissedDetentionReport();
-  exportMissedDetentionEventsReport({
-    title: "Outstanding Missed Detentions Report",
-    rows: buildOutstandingMissedDetentionRows(),
-    emptyMessage: "No outstanding missed detention records were found.",
-    filenamePrefix: "outstanding_missed_detentions"
-  });
-}
-
-function exportMissedDetentionEventsReport({ title, rows, emptyMessage, filenamePrefix }) {
-  const date = getFormattedDate();
-
+async function exportOutstandingDetentionsList() {
+  const rows = buildOutstandingDetentionRows();
   if (rows.length === 0) {
-    alert(emptyMessage);
-    return;
-  }
-
-  if (exportFormat.value === "pdf") {
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.text(title, 14, 15);
-    doc.autoTable({
-      startY: 22,
-      head: [[
-        "Missed Detention Date",
-        "Detention Day",
-        "Surname",
-        "Given Name",
-        "Year",
-        "Roll Class",
-        "Latest Late Arrival",
-        "Late Arrivals",
-        "Detentions Served",
-        "Detentions Missed",
-        "Attendance",
-        "Outcome"
-      ]],
-      body: rows.map(row => [
-        row["Missed Detention Date"],
-        row["Detention Day"],
-        row.Surname,
-        row["Given Name"],
-        row.Year,
-        row["Roll Class"],
-        row["Date of Most Recent Late Arrival"],
-        row["Number of Late Arrivals"],
-        row["Number of Late Detentions Served"],
-        row["Number of Late Detentions Missed"],
-        row["Attendance During Detention"],
-        row.Outcome
-      ]),
-      styles: { fontSize: 7 }
-    });
-    doc.save(`${filenamePrefix}_${date}.pdf`);
+    alert("No outstanding detentions were found.");
     return;
   }
 
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, sheet, "Missed Detentions");
-  XLSX.writeFile(workbook, `${filenamePrefix}_${date}.xlsx`);
-}
-
-async function exportMissedDetentionNoticePdf() {
-  const rows = buildMissedDetentionNoticeRows();
-
-  if (rows.length === 0) {
-    alert("No missed detention records available to export.");
-    return;
-  }
-
-  const date = getLocalDateString();
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const marginX = 20;
-  const maxTextWidth = pageWidth - (marginX * 2);
-  const noticeText = getMissedDetentionNoticeText();
-
-  rows.forEach((student, index) => {
-    if (index > 0) {
-      doc.addPage();
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text(student.fullName, marginX, 28);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`Year ${student.yearGroup || "-"}    Roll Class: ${student.rollClass || "-"}`, marginX, 38);
-
-    doc.setFontSize(11);
-    const lines = doc.splitTextToSize(noticeText, maxTextWidth);
-    doc.text(lines, marginX, 55, { lineHeightFactor: 1.35 });
-  });
-
-  doc.save(`missed-detention-notices-${date}.pdf`);
-}
-
-async function exportTwoMissedDetentionsList() {
-  const rows = buildTwoMissedDetentionsRows();
-
-  if (rows.length === 0) {
-    alert("No students currently have two or more outstanding missed detentions.");
-    return;
-  }
-
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, sheet, "Two Or More Missed");
-  XLSX.writeFile(workbook, `students_two_or_more_missed_detentions_${getFormattedDate()}.xlsx`);
-}
-
-async function hydrateAttendanceDaysForMissedDetentionReport() {
-  const pairs = [];
-
-  allStudents.forEach(student => {
-    const activeDetention = student.activeDetention;
-    if (!activeDetention || activeDetention.status !== "open") {
-      return;
-    }
-
-    const eventDate = activeDetention.pendingAttendanceCheckDate || activeDetention.scheduledForDate;
-    if (!eventDate) {
-      return;
-    }
-
-    const key = `${student.studentId}_${eventDate}`;
-    if (!attendanceDaysByKey.has(key)) {
-      pairs.push({ studentId: student.studentId, date: eventDate });
-    }
-  });
-
-  if (pairs.length === 0) {
-    return;
-  }
-
-  try {
-    const response = await fetch(ATTENDANCE_DAY_LOOKUP_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ pairs })
-    });
-    const data = await response.json();
-    if (!response.ok || data.status !== "success") {
-      throw new Error(data.message || "Attendance lookup failed.");
-    }
-
-    Object.entries(data.records || {}).forEach(([key, value]) => {
-      attendanceDaysByKey.set(key, value);
-    });
-  } catch (err) {
-    console.error("Failed to load attendance-day records for reports", err);
-  }
+  XLSX.utils.book_append_sheet(workbook, sheet, "Outstanding Detentions");
+  XLSX.writeFile(workbook, `outstanding_detentions_${getFormattedDate()}.xlsx`);
 }
 
 function exportHistoryReport() {
@@ -405,7 +249,7 @@ function exportHistoryReport() {
       minutesLate: arrival.minutesLate ?? '',
       shorthand: arrival.shorthand || '',
       description: arrival.description || '',
-      detentionAssignedFor: student.activeDetention?.scheduledForDate || ''
+      oldestOutstandingDetention: student.detentionStatus?.oldestOutstandingDetentionDate || ''
     }));
   });
 
@@ -469,13 +313,7 @@ function getLocalDateString() {
 }
 
 function getMissedWhilePresentCount(student) {
-  if (!hasOutstandingDetentionObligation(student)) {
-    return 0;
-  }
-
-  return Array.isArray(student.detentionHistory)
-    ? getOutstandingMissedDetentionHistory(student).length
-    : 0;
+  return 0;
 }
 
 function getUnjustifiedLateArrivalDates(student) {
@@ -515,37 +353,25 @@ function getDetentionsServedCount(student) {
   return Math.max(historyServedCount, student.detentionsServed || 0);
 }
 
-function hasOutstandingDetentionObligation(student) {
-  const activeDetention = student.activeDetention;
-  if (!activeDetention || activeDetention.status !== "open") {
-    return false;
-  }
-
-  const latestLateDate = getLatestLateArrivalDate(student);
-  const mostRecentServedDate = getMostRecentCompletedDetentionDate(student);
-  if (latestLateDate && mostRecentServedDate && mostRecentServedDate >= latestLateDate) {
-    return false;
-  }
-
-  return true;
-}
-
-function buildHistoricMissedDetentionRows() {
-  return buildMissedDetentionRowsFromEntries(student => getHistoricMissedDetentionHistory(student));
-}
-
-function buildOutstandingMissedDetentionRows() {
-  return buildMissedDetentionRowsFromEntries(student => getOutstandingMissedDetentionHistory(student));
-}
-
-function buildMissedDetentionRowsFromEntries(resolveEntries) {
+function buildOutstandingDetentionRows() {
+  const today = getLocalDateString();
   return allStudents
     .flatMap(student => {
-      const entries = resolveEntries(student);
-      const detentionsMissed = getHistoricMissedDetentionHistory(student).length;
-      return entries.map(entry => ({
-        "Missed Detention Date": entry.scheduledForDate || entry.date || '',
-        "Detention Day": formatWeekday(entry.scheduledForDate || entry.date || ''),
+      const detentions = getDetentionLedger(student);
+      const detentionServedEvents = getDetentionServedEvents(student);
+      const status = student.detentionStatus || buildDetentionStatus(detentions, detentionServedEvents);
+      if (!status.hasOpenDetention) return [];
+
+      const latestServedDate = getLatestServedDate(detentionServedEvents);
+      const outstanding = getOutstandingDetentions(detentions, latestServedDate);
+      const oldestDate = status.oldestOutstandingDetentionDate || "";
+      const daysOutstanding = countSchoolDaysElapsed(oldestDate, today);
+      return [{
+        "Outstanding Band": formatOutstandingBand(daysOutstanding),
+        "School Days Outstanding": daysOutstanding,
+        "Oldest Outstanding Detention Date": oldestDate,
+        "Newest Outstanding Detention Date": status.newestOutstandingDetentionDate || "",
+        "Outstanding Detention Count": status.outstandingCount,
         Surname: student.surname,
         "Given Name": student.givenName,
         Year: student.yearGroup || '',
@@ -553,96 +379,21 @@ function buildMissedDetentionRowsFromEntries(resolveEntries) {
         "Date of Most Recent Late Arrival": getLatestLateArrivalDate(student),
         "Number of Late Arrivals": getLateArrivalCount(student),
         "Number of Late Detentions Served": getDetentionsServedCount(student),
-        "Number of Late Detentions Missed": detentionsMissed,
-        "Attendance During Detention": getAttendanceAtSchoolLabel(entry),
-        Outcome: getMissedDetentionOutcomeLabel(entry),
-        "Attendance Evidence": entry.attendanceEvidence || '',
-        "Attendance Day Row Count": entry.attendanceDayRowCount ?? '',
+        "Latest Served Detention Date": latestServedDate || "",
+        "Open Detention Source Dates": outstanding.map(detention => detention.sourceLateDate || "").filter(Boolean).join(", "),
         studentId: student.studentId,
-        missedDetentionDate: entry.scheduledForDate || entry.date || '',
-        day: formatWeekday(entry.scheduledForDate || entry.date || ''),
-        surname: student.surname,
-        givenName: student.givenName,
-        yearGroup: student.yearGroup || '',
-        rollClass: student.rollClass,
-        mostRecentLateArrivalDate: getLatestLateArrivalDate(student),
-        lateArrivalCount: getLateArrivalCount(student),
-        detentionsServed: getDetentionsServedCount(student),
-        detentionsMissed,
-        attendanceAtSchool: getAttendanceAtSchoolLabel(entry),
-        outcomeLabel: getMissedDetentionOutcomeLabel(entry),
-        attendanceEvidence: entry.attendanceEvidence || '',
-        attendanceDayRowCount: entry.attendanceDayRowCount ?? ''
-      }));
+        sortYear: student.yearGroup || '',
+        sortSurname: student.surname,
+        sortGivenName: student.givenName
+      }];
     })
     .sort((a, b) =>
-      String(a.missedDetentionDate).localeCompare(String(b.missedDetentionDate)) ||
-      compareYearGroups(a.yearGroup, b.yearGroup) ||
-      a.surname.localeCompare(b.surname) ||
-      a.givenName.localeCompare(b.givenName)
+      Number(b["School Days Outstanding"]) - Number(a["School Days Outstanding"]) ||
+      compareYearGroups(a.sortYear, b.sortYear) ||
+      a.sortSurname.localeCompare(b.sortSurname) ||
+      a.sortGivenName.localeCompare(b.sortGivenName)
     )
-    .map(({ studentId, missedDetentionDate, day, surname, givenName, yearGroup, rollClass, mostRecentLateArrivalDate, lateArrivalCount, detentionsServed, detentionsMissed, attendanceAtSchool, outcomeLabel, attendanceEvidence, attendanceDayRowCount, ...reportRow }) => reportRow);
-}
-
-function buildMissedDetentionNoticeRows() {
-  const studentsById = new Map();
-
-  allStudents.forEach(student => {
-    if (studentsById.has(student.studentId)) return;
-    if (getOutstandingMissedDetentionHistory(student).length === 0) return;
-
-    studentsById.set(student.studentId, {
-      fullName: formatStudentFullName(student.givenName, student.surname),
-      yearGroup: student.yearGroup || "",
-      rollClass: student.rollClass || ""
-    });
-  });
-
-  return [...studentsById.values()];
-}
-
-function buildTwoMissedDetentionsRows() {
-  return allStudents
-    .filter(student =>
-      student.activeDetention?.status === "open"
-      && Number(student.activeDetention?.missedWhilePresentCount || 0) >= 2
-    )
-    .sort((a, b) =>
-      compareYearGroups(a.yearGroup, b.yearGroup) ||
-      a.surname.localeCompare(b.surname) ||
-      a.givenName.localeCompare(b.givenName)
-    )
-    .map(student => ({
-      "Student ID": student.studentId,
-      Surname: student.surname,
-      "Given Name": student.givenName,
-      Year: student.yearGroup || "",
-      "Roll Class": student.rollClass,
-      "Current Missed Detentions": Number(student.activeDetention?.missedWhilePresentCount || 0),
-      "Date of Most Recent Late Arrival": getLatestLateArrivalDate(student),
-      "Number of Late Arrivals": getLateArrivalCount(student),
-      "Number of Late Detentions Served": getDetentionsServedCount(student),
-      "Next Scheduled Detention": student.activeDetention?.scheduledForDate || "",
-      "Pending Attendance Check Date": student.activeDetention?.pendingAttendanceCheckDate || ""
-    }));
-}
-
-function getMissedDetentionNoticeText() {
-  return [
-    "This week you arrived to school late (after roll call) and did not bring a note. You had a detention scheduled, but did not attend. Please attend the detention room at FIRST BREAK TODAY (10:35 Mon / Wed / Fri or 10:25 Tue / Thur), in the appropriate room below:",
-    "",
-    "Stage 4 (Year 7 and Year 8) in A6",
-    "Stage 5 (Year 9 and Year 10) in A7",
-    "Stage 6 (Year 11 and Year 12) in A9",
-    "",
-    "If you refuse to attend a detention for your late arrival to school, you may receive an after school detention.",
-    "",
-    "If you believe this detention is an error, you must still attend the detention room and talk to the teacher on supervision."
-  ].join("\n");
-}
-
-function formatStudentFullName(givenName, surname) {
-  return [givenName, surname].filter(Boolean).join(" ").trim() || "Student";
+    .map(({ studentId, sortYear, sortSurname, sortGivenName, ...reportRow }) => reportRow);
 }
 
 function compareYearGroups(a, b) {
@@ -657,68 +408,6 @@ function compareYearGroups(a, b) {
   return String(a || "").localeCompare(String(b || ""));
 }
 
-function getHistoricMissedDetentionHistory(student) {
-  const history = Array.isArray(student.detentionHistory)
-    ? student.detentionHistory
-    : [];
-
-  return history.filter(entry => entry?.outcome === "missed_while_present").sort((a, b) =>
-    String(a.scheduledForDate || a.date || '').localeCompare(String(b.scheduledForDate || b.date || ''))
-  );
-}
-
-function getOutstandingMissedDetentionHistory(student) {
-  if (!hasOutstandingDetentionObligation(student)) {
-    return [];
-  }
-
-  const activeDetention = student.activeDetention;
-  const history = Array.isArray(student.detentionHistory)
-    ? student.detentionHistory
-    : [];
-  const mostRecentServedIndex = findMostRecentServedDetentionIndex(history);
-  const unresolvedHistory = history.slice(mostRecentServedIndex + 1);
-  const activeLateDate = activeDetention.createdFromLateDate || "";
-  const skippedDetentions = unresolvedHistory.filter(entry => {
-    if (entry.outcome !== "missed_while_present") {
-      return false;
-    }
-
-    if (activeLateDate && entry.lateDate && entry.lateDate !== activeLateDate) {
-      return false;
-    }
-
-    return true;
-  });
-
-  return skippedDetentions.sort((a, b) =>
-    String(a.date || a.scheduledForDate || '').localeCompare(String(b.date || b.scheduledForDate || ''))
-  );
-}
-
-function findMostRecentServedDetentionIndex(history) {
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    if (history[index]?.outcome === "served") {
-      return index;
-    }
-  }
-
-  return -1;
-}
-
-function getAttendanceAtSchoolLabel(entry) {
-  if (entry.outcome === "missed_while_present") return "Present";
-  if (entry.outcome === "absent_from_school" || entry.outcome === "not_counted_absence_recorded") return "Not safely present";
-  return "Pending check";
-}
-
-function getMissedDetentionOutcomeLabel(entry) {
-  if (entry.outcome === "missed_while_present") return "Missed detention while present";
-  if (entry.outcome === "absent_from_school") return "Missed detention while absent from school";
-  if (entry.outcome === "not_counted_absence_recorded") return "Not counted because an absence row was recorded";
-  return "Missed detention awaiting attendance confirmation";
-}
-
 function formatWeekday(dateText) {
   const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return '';
@@ -726,6 +415,118 @@ function formatWeekday(dateText) {
   const [, year, month, day] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   return date.toLocaleDateString('en-AU', { weekday: 'long' });
+}
+
+function getDetentionLedger(student) {
+  const detentions = Array.isArray(student.detentions) ? [...student.detentions] : [];
+  const activeDetention = student.activeDetention;
+
+  if (activeDetention?.status === "open") {
+    const sourceLateDate = activeDetention.createdFromLateDate || activeDetention.scheduledForDate || "";
+    const detentionId = sourceLateDate || activeDetention.scheduledForDate || "legacy_active_detention";
+    if (!detentions.some(detention => detention?.detentionId === detentionId)) {
+      detentions.push({
+        detentionId,
+        sourceLateDate,
+        originalScheduledForDate: activeDetention.scheduledForDate || sourceLateDate,
+        createdAt: activeDetention.createdAt || "",
+        createdBy: "legacy_active_detention_migration",
+        sourceContext: activeDetention.sourceContext || "legacy_active_detention"
+      });
+    }
+  }
+
+  return detentions
+    .filter(detention => detention && detention.originalScheduledForDate)
+    .sort((a, b) => String(a.originalScheduledForDate).localeCompare(String(b.originalScheduledForDate)));
+}
+
+function getDetentionServedEvents(student) {
+  const explicitEvents = Array.isArray(student.detentionServedEvents)
+    ? [...student.detentionServedEvents]
+        .filter(event => event?.servedDate)
+        .sort((a, b) => String(a.servedDate).localeCompare(String(b.servedDate)) || String(a.markedAt || "").localeCompare(String(b.markedAt || "")))
+    : [];
+
+  if (explicitEvents.length > 0) {
+    return explicitEvents;
+  }
+
+  const history = Array.isArray(student.detentionHistory) ? student.detentionHistory : [];
+  return history
+    .filter(entry => entry?.outcome === "served" && (entry.date || entry.scheduledForDate))
+    .map(entry => ({
+      servedDate: entry.date || entry.scheduledForDate,
+      markedAt: entry.date || entry.scheduledForDate,
+      markedBy: "legacy_detention_history",
+      source: "legacy_detention_history"
+    }))
+    .sort((a, b) => String(a.servedDate).localeCompare(String(b.servedDate)));
+}
+
+function buildDetentionStatus(detentions, servedEvents) {
+  const latestServedDate = getLatestServedDate(servedEvents);
+  const outstanding = getOutstandingDetentions(detentions, latestServedDate);
+  const dates = outstanding
+    .map(detention => detention.originalScheduledForDate)
+    .filter(Boolean)
+    .sort();
+
+  return {
+    hasOpenDetention: outstanding.length > 0,
+    outstandingCount: outstanding.length,
+    latestServedDate,
+    oldestOutstandingDetentionDate: dates[0] || null,
+    newestOutstandingDetentionDate: dates[dates.length - 1] || null
+  };
+}
+
+function getOutstandingDetentions(detentions, latestServedDate) {
+  return detentions.filter(detention => {
+    const scheduledDate = detention?.originalScheduledForDate;
+    if (!scheduledDate) return false;
+    return !latestServedDate || scheduledDate > latestServedDate;
+  });
+}
+
+function getLatestServedDate(servedEvents) {
+  const dates = servedEvents
+    .map(event => event?.servedDate)
+    .filter(Boolean)
+    .sort();
+  return dates[dates.length - 1] || null;
+}
+
+function countSchoolDaysElapsed(startDateText, endDateText) {
+  const startDate = parseDate(startDateText);
+  const endDate = parseDate(endDateText);
+  if (!startDate || !endDate || startDate >= endDate) {
+    return 0;
+  }
+
+  let count = 0;
+  const cursor = new Date(startDate);
+  cursor.setDate(cursor.getDate() + 1);
+  while (cursor <= endDate) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      count += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}
+
+function parseDate(dateText) {
+  const match = String(dateText || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+function formatOutstandingBand(daysOutstanding) {
+  if (daysOutstanding <= 0) return "Due today or future";
+  return `${daysOutstanding} school day${daysOutstanding === 1 ? "" : "s"} outstanding`;
 }
 
 function getYearGroup(rollClass) {

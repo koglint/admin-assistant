@@ -11,13 +11,9 @@ import {
   collection,
   getDocs,
   doc,
-  deleteField,
   runTransaction,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
-const ATTENDANCE_DAY_LOOKUP_URL = `${BACKEND_BASE_URL}/attendance-days/lookup`;
 
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
@@ -187,34 +183,25 @@ unselectAllBtn.addEventListener("click", () => {
 
 markPresentBtn.addEventListener("click", async () => {
   const selectedIds = [...selectedStudentIds];
-  const today = getLocalDateString();
-  const studentsDueToday = filteredDetentionData.filter(student =>
-    student.activeDetention
-    && student.activeDetention.status === "open"
-    && student.activeDetention.scheduledForDate === today
-  );
 
-  if (selectedIds.length === 0 && studentsDueToday.length === 0) {
-    alert("No students selected, and no visible detentions are due today.");
+  if (selectedIds.length === 0) {
+    alert("No students selected.");
     return;
   }
 
-  const missedStudents = studentsDueToday.filter(student => !selectedStudentIds.has(student.studentId));
   const confirmed = confirm(
     `Process today's detention roll?\n\n`
-    + `Present/served: ${selectedIds.length}\n`
-    + `Not present and to be checked against school attendance: ${missedStudents.length}`
+    + `Present/served: ${selectedIds.length}\n\n`
+    + `This will clear all selected students' outstanding detentions due on or before today.`
   );
   if (!confirmed) return;
 
   const servedCount = await markSelectedPresent(selectedIds);
-  const missedCount = await markMissedDetentions(missedStudents, today);
   clearSelectedStudents();
   await loadDetentionSummary();
   alert(
     `Detention roll processed.\n\n`
-    + `${servedCount} student(s) marked as successfully completed detention.\n`
-    + `${missedCount} student(s) marked as absent from detention and waiting for school-attendance confirmation from the upload data.`
+    + `${servedCount} student(s) marked as successfully completed detention.`
   );
 });
 
@@ -303,6 +290,10 @@ async function loadDetentionSummary() {
 
     const latest = [...student.lateArrivals].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
+    const detentions = getDetentionLedger(student);
+    const detentionServedEvents = getDetentionServedEvents(student);
+    const detentionStatus = buildDetentionStatus(detentions, detentionServedEvents);
+
     detentionDataCache.push({
       studentId: id,
       givenName: student.givenName || "",
@@ -312,8 +303,12 @@ async function loadDetentionSummary() {
       latestDate: latest?.date ?? '-',
       lateCount: student.lateCount || 0,
       detentionsServed: student.detentionsServed || 0,
-      activeDetention: student.activeDetention || null,
-      resolved: isStudentResolved(student)
+      detentions,
+      detentionServedEvents,
+      detentionStatus,
+      outstandingCount: detentionStatus.outstandingCount,
+      oldestOutstandingDetentionDate: detentionStatus.oldestOutstandingDetentionDate || "-",
+      resolved: !detentionStatus.hasOpenDetention
     });
   });
 
@@ -411,7 +406,7 @@ function compareStudents(a, b) {
 }
 
 function normalizeSortValue(value, key) {
-  if (["lateCount", "detentionsServed"].includes(key)) {
+  if (["lateCount", "detentionsServed", "outstandingCount"].includes(key)) {
     return Number(value) || 0;
   }
 
@@ -419,7 +414,7 @@ function normalizeSortValue(value, key) {
     return value ? 1 : 0;
   }
 
-  if (key === "latestDate") {
+  if (key === "latestDate" || key === "oldestOutstandingDetentionDate") {
     return value === "-" ? "" : String(value || "");
   }
 
@@ -440,7 +435,7 @@ function renderDetentionTable(data) {
 
   if (data.length === 0) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="10">No students match the current detention roll filters.</td>';
+    row.innerHTML = '<td colspan="12">No students match the current detention roll filters.</td>';
     tableBody.appendChild(row);
   }
 
@@ -456,6 +451,8 @@ function renderDetentionTable(data) {
       <td data-label="Roll Class">${student.rollClass}</td>
       <td data-label="Last Late">${student.latestDate}</td>
       <td data-label="Late Count">${student.lateCount}</td>
+      <td data-label="Outstanding">${student.outstandingCount}</td>
+      <td data-label="Oldest Due">${student.oldestOutstandingDetentionDate}</td>
       <td data-label="Detentions Served">${student.detentionsServed}</td>
       <td data-label="Resolved">
         <span class="status-pill status-display ${student.resolved ? "status-ok" : "status-pending"}">
@@ -646,23 +643,39 @@ async function markSelectedPresent(selectedIds) {
       if (!snap.exists()) return false;
 
       const data = snap.data();
-      const activeDetention = data.activeDetention;
-      if (!activeDetention || activeDetention.status !== "open") {
+      const today = getLocalDateString();
+      const detentions = getDetentionLedger(data);
+      const detentionServedEvents = getDetentionServedEvents(data);
+      const latestServedDate = getLatestServedDate(detentionServedEvents);
+      const outstandingDue = getOutstandingDetentions(detentions, latestServedDate)
+        .filter(detention => (detention.originalScheduledForDate || "") <= today);
+
+      if (outstandingDue.length === 0) {
         return false;
       }
 
       const currentCount = data.detentionsServed || 0;
-      const today = getLocalDateString();
       const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
+      const servedEvent = {
+        servedDate: today,
+        markedAt: new Date().toISOString(),
+        markedBy: currentUserDescriptor,
+        source: "detention_roll"
+      };
+      const nextServedEvents = [...detentionServedEvents, servedEvent];
+      const nextStatus = buildDetentionStatus(detentions, nextServedEvents);
       history.push({
         date: today,
-        scheduledForDate: activeDetention.scheduledForDate,
-        outcome: "served"
+        outcome: "served",
+        resolvedDetentionIds: outstandingDue.map(detention => detention.detentionId)
       });
 
       transaction.update(ref, {
         detentionsServed: currentCount + 1,
         lastDetentionServedDate: today,
+        detentions,
+        detentionServedEvents: nextServedEvents,
+        detentionStatus: nextStatus,
         activeDetention: null,
         detentionHistory: history,
         updatedAt: serverTimestamp(),
@@ -676,119 +689,6 @@ async function markSelectedPresent(selectedIds) {
   });
 }
 
-async function markMissedDetentions(missedStudents, rollDate) {
-  let updatedCount = 0;
-  const attendanceByKey = await fetchAttendanceDays(missedStudents.map(student => ({
-    studentId: student.studentId,
-    date: rollDate
-  })));
-
-  for (const student of missedStudents) {
-    const ref = doc(db, "students", student.studentId);
-    try {
-      const updated = await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(ref);
-        if (!snap.exists()) return false;
-
-        const data = snap.data();
-        const activeDetention = data.activeDetention;
-        if (!activeDetention || activeDetention.status !== "open") return false;
-        if (activeDetention.scheduledForDate !== rollDate) return false;
-        if (activeDetention.pendingAttendanceCheckDate === rollDate) return false;
-
-        const attendanceDay = attendanceByKey.get(`${student.studentId}_${rollDate}`) || null;
-        const hasAttendanceDecision = attendanceDay?.hasFullDayCoverage === true;
-        const markedAt = new Date().toISOString();
-
-        if (hasAttendanceDecision) {
-          const history = Array.isArray(data.detentionHistory) ? [...data.detentionHistory] : [];
-          const presentDuringDetention = attendanceDay.presentDuringDetention ?? attendanceDay.presentAtSchool;
-          const missedWhilePresent = presentDuringDetention !== false;
-          const currentMissedCount = Number(activeDetention.missedWhilePresentCount || 0);
-          const nextMissedCount = missedWhilePresent ? currentMissedCount + 1 : currentMissedCount;
-
-          history.push({
-            date: rollDate,
-            lateDate: activeDetention.createdFromLateDate || "",
-            scheduledForDate: activeDetention.scheduledForDate || rollDate,
-            outcome: missedWhilePresent ? "missed_while_present" : "absent_from_school"
-          });
-
-          transaction.update(ref, {
-            activeDetention: {
-              ...activeDetention,
-              scheduledForDate: nextSchoolDay(rollDate),
-              pendingAttendanceCheckDate: null,
-              lastEvaluatedDate: rollDate,
-              lastRollMark: "absent",
-              lastRollMarkedAt: markedAt,
-              missedWhilePresentCount: nextMissedCount
-            },
-            detentionHistory: history,
-            updatedAt: serverTimestamp(),
-            updatedBy: currentUserDescriptor,
-            lastAction: missedWhilePresent
-              ? "detention_missed_while_present_resolved_from_attendance_record"
-              : "detention_absence_resolved_from_attendance_record",
-            lastRollMark: "absent",
-            lastRollMarkedAt: serverTimestamp()
-          });
-          return true;
-        }
-
-        transaction.update(ref, {
-          activeDetention: {
-            ...activeDetention,
-            lastRollMark: "absent",
-            lastRollMarkedAt: markedAt,
-            pendingAttendanceCheckDate: rollDate
-          },
-          updatedAt: serverTimestamp(),
-          updatedBy: currentUserDescriptor,
-          lastAction: "detention_marked_absent_pending_attendance_check",
-          lastRollMark: "absent",
-          lastRollMarkedAt: serverTimestamp()
-        });
-        return true;
-      });
-
-      if (updated) {
-        updatedCount += 1;
-      }
-    } catch (err) {
-      console.error(`Failed to mark missed detention for ${student.studentId}`, err);
-    }
-  }
-
-  return updatedCount;
-}
-
-async function fetchAttendanceDays(pairs) {
-  const validPairs = pairs.filter(pair => pair?.studentId && pair?.date);
-  if (validPairs.length === 0) {
-    return new Map();
-  }
-
-  try {
-    const response = await fetch(ATTENDANCE_DAY_LOOKUP_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ pairs: validPairs })
-    });
-    const data = await response.json();
-    if (!response.ok || data.status !== "success") {
-      throw new Error(data.message || "Attendance lookup failed.");
-    }
-
-    return new Map(Object.entries(data.records || {}));
-  } catch (err) {
-    console.error("Failed to load attendance-day records for detention roll", err);
-    return new Map();
-  }
-}
-
 async function undoServedDetention(studentId) {
   const ref = doc(db, "students", studentId);
   return runTransaction(db, async (transaction) => {
@@ -800,29 +700,27 @@ async function undoServedDetention(studentId) {
     if (currentCount <= 0) return false;
 
     const history = Array.isArray(student.detentionHistory) ? [...student.detentionHistory] : [];
+    const detentions = getDetentionLedger(student);
+    const servedEvents = getDetentionServedEvents(student);
+    if (servedEvents.length === 0) return false;
+
     const lastServedIndex = [...history].reverse().findIndex(entry => entry.outcome === "served");
-    let reopenedDetention = student.activeDetention || null;
 
     if (lastServedIndex !== -1) {
       const actualIndex = history.length - 1 - lastServedIndex;
-      const servedEntry = history.splice(actualIndex, 1)[0];
-      reopenedDetention = {
-        status: "open",
-        createdFromLateDate: servedEntry.date,
-        scheduledForDate: getLocalDateString(),
-        sourceContext: "manual_reopen",
-        createdAt: new Date().toISOString(),
-        lastRollMark: null,
-        lastRollMarkedAt: null,
-        pendingAttendanceCheckDate: null,
-        missedWhilePresentCount: 0
-      };
+      history.splice(actualIndex, 1);
     }
+
+    const nextServedEvents = servedEvents.slice(0, -1);
+    const nextStatus = buildDetentionStatus(detentions, nextServedEvents);
 
     transaction.update(ref, {
       detentionsServed: currentCount - 1,
-      lastDetentionServedDate: deleteField(),
-      activeDetention: reopenedDetention,
+      lastDetentionServedDate: getLatestServedDate(nextServedEvents) || null,
+      detentions,
+      detentionServedEvents: nextServedEvents,
+      detentionStatus: nextStatus,
+      activeDetention: null,
       detentionHistory: history,
       updatedAt: serverTimestamp(),
       updatedBy: currentUserDescriptor,
@@ -838,6 +736,86 @@ function buildUserDescriptor(user) {
 }
 
 function isStudentResolved(student) {
+  const status = student.detentionStatus || buildDetentionStatus(getDetentionLedger(student), getDetentionServedEvents(student));
+  return !status.hasOpenDetention;
+}
+
+function getDetentionLedger(student) {
+  const detentions = Array.isArray(student.detentions) ? [...student.detentions] : [];
   const activeDetention = student.activeDetention;
-  return !activeDetention || activeDetention.status !== "open";
+
+  if (activeDetention?.status === "open") {
+    const sourceLateDate = activeDetention.createdFromLateDate || activeDetention.scheduledForDate || "";
+    const detentionId = sourceLateDate || activeDetention.scheduledForDate || "legacy_active_detention";
+    if (!detentions.some(detention => detention?.detentionId === detentionId)) {
+      detentions.push({
+        detentionId,
+        sourceLateDate,
+        originalScheduledForDate: activeDetention.scheduledForDate || sourceLateDate,
+        createdAt: activeDetention.createdAt || "",
+        createdBy: "legacy_active_detention_migration",
+        sourceContext: activeDetention.sourceContext || "legacy_active_detention"
+      });
+    }
+  }
+
+  return detentions
+    .filter(detention => detention && detention.originalScheduledForDate)
+    .sort((a, b) => String(a.originalScheduledForDate).localeCompare(String(b.originalScheduledForDate)));
+}
+
+function getDetentionServedEvents(student) {
+  const explicitEvents = Array.isArray(student.detentionServedEvents)
+    ? [...student.detentionServedEvents]
+        .filter(event => event?.servedDate)
+        .sort((a, b) => String(a.servedDate).localeCompare(String(b.servedDate)) || String(a.markedAt || "").localeCompare(String(b.markedAt || "")))
+    : [];
+
+  if (explicitEvents.length > 0) {
+    return explicitEvents;
+  }
+
+  const history = Array.isArray(student.detentionHistory) ? student.detentionHistory : [];
+  return history
+    .filter(entry => entry?.outcome === "served" && (entry.date || entry.scheduledForDate))
+    .map(entry => ({
+      servedDate: entry.date || entry.scheduledForDate,
+      markedAt: entry.date || entry.scheduledForDate,
+      markedBy: "legacy_detention_history",
+      source: "legacy_detention_history"
+    }))
+    .sort((a, b) => String(a.servedDate).localeCompare(String(b.servedDate)));
+}
+
+function buildDetentionStatus(detentions, servedEvents) {
+  const latestServedDate = getLatestServedDate(servedEvents);
+  const outstanding = getOutstandingDetentions(detentions, latestServedDate);
+  const dates = outstanding
+    .map(detention => detention.originalScheduledForDate)
+    .filter(Boolean)
+    .sort();
+
+  return {
+    hasOpenDetention: outstanding.length > 0,
+    outstandingCount: outstanding.length,
+    latestServedDate,
+    oldestOutstandingDetentionDate: dates[0] || null,
+    newestOutstandingDetentionDate: dates[dates.length - 1] || null
+  };
+}
+
+function getOutstandingDetentions(detentions, latestServedDate) {
+  return detentions.filter(detention => {
+    const scheduledDate = detention?.originalScheduledForDate;
+    if (!scheduledDate) return false;
+    return !latestServedDate || scheduledDate > latestServedDate;
+  });
+}
+
+function getLatestServedDate(servedEvents) {
+  const dates = servedEvents
+    .map(event => event?.servedDate)
+    .filter(Boolean)
+    .sort();
+  return dates[dates.length - 1] || null;
 }

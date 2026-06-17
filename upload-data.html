@@ -33,10 +33,10 @@
             <h2>Upload File</h2>
             <section class="upload-guide">
                 <p><strong>Blue daily upload:</strong> use today's morning Sentral absence export, after Period 2 and before first break detention. This records late arrivals and assigns detentions.</p>
-                <p><strong>Green confirmation upload:</strong> use full-day or full-week absence data after detention rolls are marked. This confirms missed detentions and does not create new late detentions.</p>
+                <p><strong>Green confirmation upload:</strong> use full-day or full-week absence data when attendance evidence needs to be stored. It does not create or resolve detention debt.</p>
                 <p><strong>Sentral path:</strong> Sentral -> School Attendance -> Reports -> Absence Lists -> Export.</p>
                 <p><strong>File type:</strong> upload the Sentral <code>.xls</code> absence export.</p>
-                <p><strong>Order matters:</strong> upload morning lates, mark the detention roll, then upload confirmation data. Confirmation data can be daily or weekly.</p>
+                <p><strong>Order matters:</strong> upload morning lates, then use the detention roll to clear outstanding detention debt when students serve detention.</p>
                 <p><strong>Late detection:</strong> only missed roll-call rows after <code>8:35AM</code> are treated as late arrivals.</p>
             </section>
             <form id="upload-form">
@@ -56,7 +56,7 @@
                             <span class="upload-mode-content">
                                 <span class="upload-mode-kicker">Green catch-up upload</span>
                                 <span class="upload-mode-title">Attendance Confirmation Only</span>
-                                <span class="upload-mode-copy">Use full-day or full-week data. Confirms missed detentions and skips new late detention creation.</span>
+                                <span class="upload-mode-copy">Use full-day or full-week data. Stores attendance evidence without changing detention debt.</span>
                             </span>
                         </label>
                     </div>

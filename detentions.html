@@ -35,8 +35,8 @@
             <p>1. Use the <code>Sort Options</code> and <code>Year Filter</code> buttons to show the appropriate list of students.</p>
             <p>2. Tick the checkbox next to each student who is physically present at detention.</p>
             <p>3. If most students on the page attended, use <code>Select All</code> and then untick any students who are absent.</p>
-            <p>4. Click <code>Successfully Completed Detention</code>. Selected students are marked served; due students not selected are marked absent from detention.</p>
-            <p>5. After the roll is marked, use the green <code>Attendance Confirmation Only</code> upload with full-day or weekly absence data to confirm whether missed students were present at school.</p>
+            <p>4. Click <code>Successfully Completed Detention</code>. Selected students are marked served and all outstanding detentions due on or before today are cleared.</p>
+            <p>5. Students not selected keep their outstanding detention debt until they attend a future detention roll.</p>
             <p>6. If you mark a student by mistake, click <code>Undo</code> on that student&apos;s row to reverse the most recent served entry.</p>
         </section>
 
@@ -89,7 +89,9 @@
                         <th data-sort-key="rollClass"><button type="button" class="table-sort-heading">Roll Class</button></th>
                         <th data-sort-key="latestDate"><button type="button" class="table-sort-heading">Last Late</button></th>
                         <th data-sort-key="lateCount"><button type="button" class="table-sort-heading">Late Count</button></th>
-                        <th data-sort-key="detentionsServed"><button type="button" class="table-sort-heading">Detentions Served</button></th>
+                        <th data-sort-key="outstandingCount"><button type="button" class="table-sort-heading">Outstanding</button></th>
+                        <th data-sort-key="oldestOutstandingDetentionDate"><button type="button" class="table-sort-heading">Oldest Due</button></th>
+                        <th data-sort-key="detentionsServed"><button type="button" class="table-sort-heading">Served</button></th>
                         <th data-sort-key="resolved"><button type="button" class="table-sort-heading">Resolved</button></th>
                         <th>Undo</th>
                     </tr>

@@ -28,7 +28,7 @@ Staff upload a Sentral attendance export in `.xls` or `.xlsx` format.
 The upload goes to the backend, not directly to Firestore. The Upload Attendance Data page has two modes:
 
 - `Morning Late Arrivals`: use the daily morning absence export. The backend records late arrivals, assigns detentions, and writes attendance-day evidence.
-- `Attendance Confirmation Only`: use full-day or full-week absence data after detention rolls are marked. The backend updates attendance-day evidence and confirms missed detentions, but skips new late-arrival and detention creation.
+- `Attendance Confirmation Only`: use full-day or full-week absence data when attendance evidence needs to be stored. The backend updates attendance-day evidence, but it no longer creates, confirms, rolls, or resolves detention debt.
 
 ### What counts as a late arrival
 
@@ -48,13 +48,15 @@ So the system is not trying to ingest every attendance code. It is specifically 
 - `arrivalTime`: taken from the right side of the spreadsheet `Time` range
 - `minutesLate`: calculated against `8:35AM`
 - `lateCount`: total stored late-arrival records for that student
-- `activeDetention`: the current open detention, if one exists
+- `detentions`: one ledger entry per unexplained late arrival that created detention debt
+- `detentionServedEvents`: dates where staff marked the student as having served detention
+- `detentionStatus`: derived summary of outstanding detention debt
 - `detentionsServed`: how many detentions have been marked as completed
-- resolved/pending display state: derived from whether `activeDetention.status` is `open`
+- resolved/pending display state: derived from whether `detentionStatus.hasOpenDetention` is true
 
 ### How detention scheduling works
 
-When a new late arrival is added, the backend creates a detention if the student does not already have one open.
+When a new unexplained late arrival is added, the backend creates one detention ledger entry for that late arrival.
 
 Detention date logic:
 
@@ -77,20 +79,21 @@ That page:
 - allows filtering by year, search text, and served state
 - lets staff tick students and mark `Successfully Completed Detention`
 - increments `detentionsServed`
-- clears `activeDetention`
+- appends a `detentionServedEvents` entry
+- recalculates `detentionStatus`
 
 If a detention was marked incorrectly, the page can undo the last served entry.
 
-### How pending detention checks work
+### How outstanding detention debt works
 
-If a student is marked absent from detention, the backend does not immediately assume they skipped detention unfairly.
+The app no longer checks whether the student was present at school on the day they should have attended detention.
 
-Instead, it waits for an `Attendance Confirmation Only` upload with full-day coverage for the detention date. The backend uses the absence export conservatively:
+Outstanding detention debt is calculated from the ledger:
 
-- no absence row for that student/date means the student is treated as present all day and available for detention
-- any absence row for that student/date means the student is not safely counted as present during detention
-
-If there is no absence row, `missedWhilePresentCount` is recalculated from confirmed missed-detention history.
+- every unexplained late creates a detention entry with an original scheduled date
+- every served detention creates a served event
+- the latest served date resolves all detention entries due on or before that date
+- any detention entry due after the latest served date remains outstanding
 
 ### How the website is normally used
 
@@ -99,8 +102,7 @@ Typical daily flow:
 1. Sign in with the school Google account.
 2. Use the blue `Morning Late Arrivals` upload with today's morning Sentral absence export.
 3. Use the Mark Detention Roll page during detention to mark students who successfully complete detention.
-4. Use the green `Attendance Confirmation Only` upload with full-day or weekly absence data to confirm missed detentions.
-5. Use Reports when a formal export is needed.
+4. Use Reports when a formal export is needed.
 
 ### What to remember before changing anything
 
@@ -131,9 +133,8 @@ Backend responsibilities:
 - decide whether a row represents a late-to-school event
 - calculate arrival times and late minutes
 - create or update late-arrival records
-- assign or re-schedule detentions
-- evaluate whether detention absences should count as missed while present
-- recalculate resolution state from the current detention status
+- create detention ledger entries
+- recalculate outstanding detention status from ledger entries and served events
 - provide the secure admin purge endpoint
 
 This means frontend bugs usually affect presentation, workflow, or direct manual actions, while backend bugs usually affect the core attendance logic and automatic state calculation.
@@ -192,7 +193,9 @@ Important top-level fields:
 - `givenName`, `surname`, `rollClass`, `yearGroup`
 - `lateArrivals`
 - `lateCount`
-- `activeDetention`
+- `detentions`
+- `detentionServedEvents`
+- `detentionStatus`
 - `detentionsServed`
 - `detentionHistory`
 - audit fields such as `updatedAt`, `updatedBy`, `lastAction`
@@ -215,46 +218,32 @@ The current duplicate rule is date-based: if the student already has a late reco
 
 The detention lifecycle is the most important domain workflow in the project.
 
-When a new late-arrival record is added:
+When a new unexplained late-arrival record is added:
 
-- the backend checks whether the student already has an open detention
-- if not, it creates `activeDetention`
-- the detention stores the late date it came from, the scheduled detention date, and tracking fields such as `missedWhilePresentCount`
+- the backend appends one entry to `detentions`
+- the entry stores the late date it came from and the original scheduled detention date
+- `detentionStatus` is recalculated from the ledger and served events
 
 When detention is served from the frontend:
 
 - `detentions.js` updates the student document in Firestore
 - `detentionsServed` increases
 - a `served` item is appended to `detentionHistory`
-- `activeDetention` is cleared
+- a served event is appended to `detentionServedEvents`
+- all detention entries due on or before the served date are treated as resolved by derivation
 
 When a served detention is undone:
 
 - the frontend removes the latest served history entry
 - reduces `detentionsServed`
-- recreates an `activeDetention`
+- removes the latest served event
+- recalculates `detentionStatus`
 
-### Pending attendance evaluation for missed detention
+### Outstanding detention report logic
 
-If detention attendance cannot be decided immediately, the backend can leave a detention waiting for later evidence from an upload that covers the detention date.
+The Reports page exports outstanding detentions by reading `detentions`, `detentionServedEvents`, and `detentionStatus`.
 
-The backend checks later uploads conservatively:
-
-- no absence row for the student/date means present at school and therefore missed detention while at school
-- any absence row for the student/date means the missed detention is not counted and the student gets another chance
-
-If the student was present:
-
-- `missedWhilePresentCount` is recalculated from confirmed history
-- a `missed_while_present` history event is written
-- `attendanceEvidence` is set to `no_absence_row_full_day_coverage`
-- the detention is moved to the next school day
-
-If any absence row was recorded:
-
-- a `not_counted_absence_recorded` history event is written
-- `attendanceEvidence` is set to `absence_row_recorded_not_counted`
-- the detention is also re-scheduled
+Students are included when `detentionStatus.hasOpenDetention` is true. The report groups and sorts by the age of the oldest outstanding detention, calculated from `oldestOutstandingDetentionDate`.
 
 ### Frontend page-by-page logic
 
@@ -275,7 +264,7 @@ If any absence row was recorded:
 
 `reports.html` + `reports.js`
 
-- loads student data and exports summary, missed detention, and history reports
+- loads student data and exports summary, outstanding detention, and history reports
 - uses `jsPDF`, `jspdf-autotable`, and `SheetJS`
 
 `admin.html` + `admin.js`
@@ -382,8 +371,8 @@ What it does:
 
 The two upload modes are:
 
-- `Morning Late Arrivals`: records late arrivals, assigns/reconciles detentions, and writes attendance-day records.
-- `Attendance Confirmation Only`: writes attendance-day records and resolves missed detention checks without creating new late detentions.
+- `Morning Late Arrivals`: records late arrivals, creates detention ledger entries, and writes attendance-day records.
+- `Attendance Confirmation Only`: writes attendance-day records without creating or resolving detention debt.
 
 The backend still decides what the file proves from the spreadsheet contents:
 
@@ -391,7 +380,7 @@ The backend still decides what the file proves from the spreadsheet contents:
 - same-day versus next-day detention is decided from the student arrival time compared with first break
 - repeated uploads for the same report date are allowed
 - confirmation uploads can contain daily or weekly full-day data
-- detention absence checks stay pending until a confirmation upload contains enough day coverage to resolve them
+- detention debt is resolved only when staff mark a served detention on the detention roll
 
 ### `detentions.html` + `detentions.js`
 
@@ -400,9 +389,9 @@ This page is used to manage detention follow-up.
 What it does:
 
 - Loads all students with late-arrival records.
-- Shows latest late date, total late count, detention count, and current resolution status.
+- Shows latest late date, total late count, detention count, outstanding detention count, and current resolution status.
 - Lets staff select multiple students and mark them as present for detention.
-- Marks due students who are not selected as absent from detention.
+- Leaves non-selected students' outstanding detention debt unchanged.
 - Lets staff undo a detention mark.
 - Lets staff hide served students from the table.
 
@@ -410,7 +399,9 @@ Important data fields used on this page:
 
 - `detentionsServed`
 - `lastDetentionServedDate`
-- `activeDetention`
+- `detentions`
+- `detentionServedEvents`
+- `detentionStatus`
 
 ### `reports.html` + `reports.js`
 
@@ -421,7 +412,7 @@ What it does:
 - Loads student summary data from Firestore.
 - Lets the user choose PDF or Excel export for reports that support both formats.
 - Exports a school-wide summary report.
-- Exports missed detention records sorted by missed detention date.
+- Exports outstanding detention records sorted by oldest outstanding detention age.
 - Exports selected student late-arrival history.
 
 Libraries used on this page:
@@ -461,6 +452,13 @@ Typical document shape:
   "lateCount": 2,
   "detentionsServed": 1,
   "lastDetentionServedDate": "2026-04-01",
+  "detentionStatus": {
+    "hasOpenDetention": true,
+    "outstandingCount": 1,
+    "latestServedDate": "2026-04-01",
+    "oldestOutstandingDetentionDate": "2026-04-02",
+    "newestOutstandingDetentionDate": "2026-04-02"
+  },
   "notes": "",
   "lateArrivals": [
     {
@@ -472,13 +470,27 @@ Typical document shape:
       "shorthand": "U",
       "yearGroup": "10"
     }
+  ],
+  "detentions": [
+    {
+      "detentionId": "2026-04-02",
+      "sourceLateDate": "2026-04-02",
+      "originalScheduledForDate": "2026-04-02",
+      "createdBy": "backend_upload"
+    }
+  ],
+  "detentionServedEvents": [
+    {
+      "servedDate": "2026-04-01",
+      "source": "detention_roll"
+    }
   ]
 }
 ```
 
 Notes:
 
-- The frontend derives whether the current case is resolved from `activeDetention`.
+- The frontend derives whether the current case is resolved from `detentions` and `detentionServedEvents`; `detentionStatus` is a cached summary.
 - Reports and detention roll views use late-arrival records for dates, counts, arrival details, and year fallback.
 
 ## Authentication And Access
@@ -539,9 +551,8 @@ If you change the backend host, also update the `ADMIN_PURGE_URL` constant in [`
 1. Sign in on the home page.
 2. Use `Morning Late Arrivals` on the Upload Attendance Data page with today's morning absence export.
 3. Move to the Detentions page to record served detentions.
-4. Use `Attendance Confirmation Only` with full-day or weekly absence data to confirm missed detentions.
-5. Use the Reports page to export summaries for staff use.
-6. Use the Admin page only for protected maintenance actions such as a full student-data purge.
+4. Use the Reports page to export summaries or outstanding detention lists for staff use.
+5. Use the Admin page only for protected maintenance actions such as a full student-data purge.
 
 ## Maintenance Notes
 

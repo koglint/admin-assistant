@@ -89,32 +89,12 @@ function buildUploadStatus(data) {
   const mode = confirmationOnly
     ? "Attendance confirmation only: late arrivals were not recorded and new detentions were not assigned. "
     : "Morning late-arrival upload: late arrivals and detention assignment were processed. ";
-  const pendingDates = Array.isArray(data.pendingDetentionCheckDates)
-    ? data.pendingDetentionCheckDates
-        .filter((item) => item && item.date && item.count)
-        .map((item) => `${item.date} (${item.count} check${item.count === 1 ? "" : "s"})`)
-    : [];
   const latestObserved = data.latestObservedTime
     ? `Latest time found in the report: ${data.latestObservedTime}. `
     : "";
   const coverage = data.coversFullDay
     ? "This file appears to include full-day absence coverage. "
-    : "This file does not yet appear to show full-day absence coverage, so some detention absence checks may stay pending until a confirmation upload includes that date. ";
-  const checksCompleted = data.detentionChecksCompleted
-    ? `${data.detentionChecksCompleted} pending detention attendance check(s) were completed. `
-    : "";
-  const missedConfirmed = data.missedDetentionsConfirmed
-    ? `${data.missedDetentionsConfirmed} missed detention(s) were confirmed while the student was present at school. `
-    : "";
-  const notCounted = data.detentionAbsencesNotCounted
-    ? `${data.detentionAbsencesNotCounted} missed detention absence(s) were not counted because an absence row was recorded. `
-    : "";
-  const rolledForward = data.detentionsRolledForward
-    ? `${data.detentionsRolledForward} detention(s) were rolled forward. `
-    : "";
-  const checksWaiting = data.pendingDetentionChecks
-    ? `${data.pendingDetentionChecks} detention attendance check(s) are still waiting for fuller attendance data for ${pendingDates.length ? pendingDates.join(", ") : "that date"}.`
-    : "";
+    : "This file does not yet appear to show full-day absence coverage. ";
 
-  return `${reportDate}${mode}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${checksCompleted}${missedConfirmed}${notCounted}${rolledForward}${latestObserved}${coverage}${checksWaiting}`.trim();
+  return `${reportDate}${mode}${data.added} late arrival(s) recorded. ${data.detentionsAssigned || 0} detention(s) assigned. ${latestObserved}${coverage}`.trim();
 }
