@@ -20,6 +20,7 @@ const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
+const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
 const exportOutstandingDetentionsBtn = document.getElementById("export-outstanding-detentions");
 
 let allStudents = [];
@@ -52,6 +53,10 @@ onAuthStateChanged(auth, async user => {
 
 exportOutstandingDetentionsBtn.addEventListener("click", async () => {
   await runWithButtonLoading(exportOutstandingDetentionsBtn, "Exporting...", exportOutstandingDetentionsList);
+});
+
+generateMissedDetentionPdfBtn.addEventListener("click", async () => {
+  await runWithButtonLoading(generateMissedDetentionPdfBtn, "Generating...", exportMissedDetentionNoticePdf);
 });
 
 async function runWithButtonLoading(button, loadingText, action) {
@@ -229,6 +234,42 @@ async function exportOutstandingDetentionsList() {
   XLSX.writeFile(workbook, `outstanding_detentions_${getFormattedDate()}.xlsx`);
 }
 
+async function exportMissedDetentionNoticePdf() {
+  const rows = buildMissedDetentionNoticeRows();
+
+  if (rows.length === 0) {
+    alert("No overdue outstanding detentions were found.");
+    return;
+  }
+
+  const date = getLocalDateString();
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 20;
+  const maxTextWidth = pageWidth - (marginX * 2);
+  const noticeText = getMissedDetentionNoticeText();
+
+  rows.forEach((student, index) => {
+    if (index > 0) {
+      doc.addPage();
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text(student.fullName, marginX, 28);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`Year ${student.yearGroup || "-"}    Roll Class: ${student.rollClass || "-"}`, marginX, 38);
+
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(noticeText, maxTextWidth);
+    doc.text(lines, marginX, 55, { lineHeightFactor: 1.35 });
+  });
+
+  doc.save(`missed-detention-notices-${date}.pdf`);
+}
+
 function exportHistoryReport() {
   const selectedStudents = resolveHistorySelection();
   if (selectedStudents.length === 0) {
@@ -351,6 +392,47 @@ function getDetentionsServedCount(student) {
     ? student.detentionHistory.filter(entry => entry?.outcome === "served").length
     : 0;
   return Math.max(historyServedCount, student.detentionsServed || 0);
+}
+
+function buildMissedDetentionNoticeRows() {
+  const today = getLocalDateString();
+
+  return allStudents
+    .filter(student => {
+      const detentions = getDetentionLedger(student);
+      const servedEvents = getDetentionServedEvents(student);
+      const latestServedDate = getLatestServedDate(servedEvents);
+      return getOutstandingDetentions(detentions, latestServedDate)
+        .some(detention => detention.originalScheduledForDate < today);
+    })
+    .sort((a, b) =>
+      compareYearGroups(a.yearGroup, b.yearGroup) ||
+      a.surname.localeCompare(b.surname) ||
+      a.givenName.localeCompare(b.givenName)
+    )
+    .map(student => ({
+      fullName: formatStudentFullName(student.givenName, student.surname),
+      yearGroup: student.yearGroup || "",
+      rollClass: student.rollClass || ""
+    }));
+}
+
+function getMissedDetentionNoticeText() {
+  return [
+    "This week you arrived to school late (after roll call) and did not bring a note. You had a detention scheduled, but did not attend. Please attend the detention room at FIRST BREAK TODAY (10:35 Mon / Wed / Fri or 10:25 Tue / Thur), in the appropriate room below:",
+    "",
+    "Stage 4 (Year 7 and Year 8) in A6",
+    "Stage 5 (Year 9 and Year 10) in A7",
+    "Stage 6 (Year 11 and Year 12) in A9",
+    "",
+    "If you refuse to attend a detention for your late arrival to school, you may receive an after school detention.",
+    "",
+    "If you believe this detention is an error, you must still attend the detention room and talk to the teacher on supervision."
+  ].join("\n");
+}
+
+function formatStudentFullName(givenName, surname) {
+  return [givenName, surname].filter(Boolean).join(" ").trim() || "Student";
 }
 
 function buildOutstandingDetentionRows() {
