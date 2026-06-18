@@ -806,6 +806,20 @@ td:nth-child(7) {
   background: #fff5f5;
 }
 
+.report-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.report-action-slips {
+  border-color: #d9b66f;
+  background: #fffaf0;
+}
+
+.report-action-excel {
+  border-color: #83b5d6;
+  background: #f3f9fd;
+}
+
 .purge-btn {
   background-color: #8b0000;
 }

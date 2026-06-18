@@ -449,8 +449,7 @@ function buildOutstandingDetentionRows() {
       const oldestDate = status.oldestOutstandingDetentionDate || "";
       const daysOutstanding = countSchoolDaysElapsed(oldestDate, today);
       return [{
-        "Outstanding Band": formatOutstandingBand(daysOutstanding),
-        "School Days Outstanding": daysOutstanding,
+        "Days Since Original Detention": daysOutstanding,
         "Oldest Outstanding Detention Date": oldestDate,
         "Newest Outstanding Detention Date": status.newestOutstandingDetentionDate || "",
         "Outstanding Detention Count": status.outstandingCount,
@@ -470,7 +469,7 @@ function buildOutstandingDetentionRows() {
       }];
     })
     .sort((a, b) =>
-      Number(b["School Days Outstanding"]) - Number(a["School Days Outstanding"]) ||
+      Number(b["Days Since Original Detention"]) - Number(a["Days Since Original Detention"]) ||
       compareYearGroups(a.sortYear, b.sortYear) ||
       a.sortSurname.localeCompare(b.sortSurname) ||
       a.sortGivenName.localeCompare(b.sortGivenName)
@@ -604,11 +603,6 @@ function parseDate(dateText) {
   if (!match) return null;
   const [, year, month, day] = match;
   return new Date(Number(year), Number(month) - 1, Number(day));
-}
-
-function formatOutstandingBand(daysOutstanding) {
-  if (daysOutstanding <= 0) return "Due today or future";
-  return `${daysOutstanding} school day${daysOutstanding === 1 ? "" : "s"} outstanding`;
 }
 
 function getYearGroup(rollClass) {

@@ -34,8 +34,21 @@
 
         <section class="admin-card">
             <h2>Outstanding Detention Reports</h2>
-            <button id="generate-missed-detention-pdf">Generate Missed Detention Slips (One Student Per Page) PDF</button>
-            <button id="export-outstanding-detentions">Export Outstanding Detentions Excel</button>
+            <div class="admin-action-grid report-action-grid">
+                <div class="admin-action-card report-action-slips">
+                    <h3>Missed Detention Slips</h3>
+                    <p>Creates printable notices only for students whose outstanding detention was due before today.</p>
+                    <p><strong>Output:</strong> PDF, one student per A4 page.</p>
+                    <button id="generate-missed-detention-pdf">Generate Missed Detention Slips</button>
+                </div>
+
+                <div class="admin-action-card report-action-excel">
+                    <h3>All Outstanding Detentions</h3>
+                    <p>Includes every student with an outstanding detention, including detentions due today.</p>
+                    <p><strong>Output:</strong> Excel spreadsheet with sortable detention data.</p>
+                    <button id="export-outstanding-detentions">Export Outstanding Detentions Excel</button>
+                </div>
+            </div>
         </section>
     </div>
 </body>
