@@ -270,9 +270,21 @@ async function exportMissedDetentionNoticePdf() {
     doc.setFontSize(12);
     doc.text(`Year ${student.yearGroup || "-"}    Roll Class: ${student.rollClass || "-"}`, marginX, 38);
 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Unexplained late arrival date(s):", marginX, 50);
+
+    doc.setFont("helvetica", "normal");
+    const lateArrivalDateText = student.unexplainedLateArrivalDates.length > 0
+      ? student.unexplainedLateArrivalDates.map(formatDateForDisplay).join(", ")
+      : "Date unavailable";
+    const lateArrivalDateLines = doc.splitTextToSize(lateArrivalDateText, maxTextWidth);
+    doc.text(lateArrivalDateLines, marginX, 57, { lineHeightFactor: 1.25 });
+
+    const noticeStartY = 57 + (lateArrivalDateLines.length * 5.5) + 8;
     doc.setFontSize(11);
     const lines = doc.splitTextToSize(noticeText, maxTextWidth);
-    doc.text(lines, marginX, 55, { lineHeightFactor: 1.35 });
+    doc.text(lines, marginX, noticeStartY, { lineHeightFactor: 1.35 });
   });
 
   doc.save(`missed-detention-notices-${date}.pdf`);
@@ -406,27 +418,43 @@ function buildMissedDetentionNoticeRows(maximumDays) {
   const today = getLocalDateString();
 
   return allStudents
-    .filter(student => {
+    .map(student => {
       const detentions = getDetentionLedger(student);
       const servedEvents = getDetentionServedEvents(student);
       const latestServedDate = getLatestServedDate(servedEvents);
-      const oldestOutstandingDate = getOutstandingDetentions(detentions, latestServedDate)
+      const outstandingDetentions = getOutstandingDetentions(detentions, latestServedDate);
+      const oldestOutstandingDate = outstandingDetentions
         .map(detention => detention.originalScheduledForDate)
         .filter(Boolean)
         .sort()[0];
       const daysOutstanding = countSchoolDaysElapsed(oldestOutstandingDate, today);
-      return oldestOutstandingDate < today && daysOutstanding <= maximumDays;
+      return {
+        student,
+        outstandingDetentions,
+        include: oldestOutstandingDate < today && daysOutstanding <= maximumDays
+      };
     })
+    .filter(entry => entry.include)
     .sort((a, b) =>
-      compareYearGroups(a.yearGroup, b.yearGroup) ||
-      a.surname.localeCompare(b.surname) ||
-      a.givenName.localeCompare(b.givenName)
+      compareYearGroups(a.student.yearGroup, b.student.yearGroup) ||
+      a.student.surname.localeCompare(b.student.surname) ||
+      a.student.givenName.localeCompare(b.student.givenName)
     )
-    .map(student => ({
-      fullName: formatStudentFullName(student.givenName, student.surname),
-      yearGroup: student.yearGroup || "",
-      rollClass: student.rollClass || ""
-    }));
+    .map(({ student, outstandingDetentions }) => {
+      const actualUnexplainedLateArrivalDates = new Set(getUnjustifiedLateArrivalDates(student));
+      const outstandingLateArrivalDates = [...new Set(
+        outstandingDetentions
+          .map(detention => detention.sourceLateDate)
+          .filter(date => actualUnexplainedLateArrivalDates.has(date))
+      )].sort();
+
+      return {
+        fullName: formatStudentFullName(student.givenName, student.surname),
+        yearGroup: student.yearGroup || "",
+        rollClass: student.rollClass || "",
+        unexplainedLateArrivalDates: outstandingLateArrivalDates
+      };
+    });
 }
 
 function getMissedDetentionNoticeText() {
@@ -445,6 +473,13 @@ function getMissedDetentionNoticeText() {
 
 function formatStudentFullName(givenName, surname) {
   return [givenName, surname].filter(Boolean).join(" ").trim() || "Student";
+}
+
+function formatDateForDisplay(dateText) {
+  const match = String(dateText || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return String(dateText || "");
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
 }
 
 function buildOutstandingDetentionRows(maximumDays) {
