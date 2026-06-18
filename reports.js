@@ -22,6 +22,8 @@ const userInfo = document.getElementById("user-info");
 const content = document.getElementById("content");
 const generateMissedDetentionPdfBtn = document.getElementById("generate-missed-detention-pdf");
 const exportOutstandingDetentionsBtn = document.getElementById("export-outstanding-detentions");
+const missedSlipsMaxDaysInput = document.getElementById("missed-slips-max-days");
+const outstandingExcelMaxDaysInput = document.getElementById("outstanding-excel-max-days");
 
 let allStudents = [];
 const selectedStudentIds = new Set();
@@ -222,9 +224,12 @@ function exportAllStudentsReport() {
 }
 
 async function exportOutstandingDetentionsList() {
-  const rows = buildOutstandingDetentionRows();
+  const maximumDays = getMaximumDays(outstandingExcelMaxDaysInput, 0);
+  if (maximumDays === null) return;
+
+  const rows = buildOutstandingDetentionRows(maximumDays);
   if (rows.length === 0) {
-    alert("No outstanding detentions were found.");
+    alert(`No outstanding detentions within ${maximumDays} day(s) were found.`);
     return;
   }
 
@@ -235,10 +240,13 @@ async function exportOutstandingDetentionsList() {
 }
 
 async function exportMissedDetentionNoticePdf() {
-  const rows = buildMissedDetentionNoticeRows();
+  const maximumDays = getMaximumDays(missedSlipsMaxDaysInput, 1);
+  if (maximumDays === null) return;
+
+  const rows = buildMissedDetentionNoticeRows(maximumDays);
 
   if (rows.length === 0) {
-    alert("No overdue outstanding detentions were found.");
+    alert(`No overdue outstanding detentions within ${maximumDays} day(s) were found.`);
     return;
   }
 
@@ -394,7 +402,7 @@ function getDetentionsServedCount(student) {
   return Math.max(historyServedCount, student.detentionsServed || 0);
 }
 
-function buildMissedDetentionNoticeRows() {
+function buildMissedDetentionNoticeRows(maximumDays) {
   const today = getLocalDateString();
 
   return allStudents
@@ -402,8 +410,12 @@ function buildMissedDetentionNoticeRows() {
       const detentions = getDetentionLedger(student);
       const servedEvents = getDetentionServedEvents(student);
       const latestServedDate = getLatestServedDate(servedEvents);
-      return getOutstandingDetentions(detentions, latestServedDate)
-        .some(detention => detention.originalScheduledForDate < today);
+      const oldestOutstandingDate = getOutstandingDetentions(detentions, latestServedDate)
+        .map(detention => detention.originalScheduledForDate)
+        .filter(Boolean)
+        .sort()[0];
+      const daysOutstanding = countSchoolDaysElapsed(oldestOutstandingDate, today);
+      return oldestOutstandingDate < today && daysOutstanding <= maximumDays;
     })
     .sort((a, b) =>
       compareYearGroups(a.yearGroup, b.yearGroup) ||
@@ -435,7 +447,7 @@ function formatStudentFullName(givenName, surname) {
   return [givenName, surname].filter(Boolean).join(" ").trim() || "Student";
 }
 
-function buildOutstandingDetentionRows() {
+function buildOutstandingDetentionRows(maximumDays) {
   const today = getLocalDateString();
   return allStudents
     .flatMap(student => {
@@ -448,6 +460,8 @@ function buildOutstandingDetentionRows() {
       const outstanding = getOutstandingDetentions(detentions, latestServedDate);
       const oldestDate = status.oldestOutstandingDetentionDate || "";
       const daysOutstanding = countSchoolDaysElapsed(oldestDate, today);
+      if (daysOutstanding > maximumDays) return [];
+
       return [{
         "Days Since Original Detention": daysOutstanding,
         "Oldest Outstanding Detention Date": oldestDate,
@@ -475,6 +489,16 @@ function buildOutstandingDetentionRows() {
       a.sortGivenName.localeCompare(b.sortGivenName)
     )
     .map(({ studentId, sortYear, sortSurname, sortGivenName, ...reportRow }) => reportRow);
+}
+
+function getMaximumDays(input, minimum) {
+  const value = Number(input.value);
+  if (!Number.isInteger(value) || value < minimum) {
+    alert(`Enter a whole number of at least ${minimum} day${minimum === 1 ? "" : "s"}.`);
+    input.focus();
+    return null;
+  }
+  return value;
 }
 
 function compareYearGroups(a, b) {

@@ -820,6 +820,34 @@ td:nth-child(7) {
   background: #f3f9fd;
 }
 
+.report-action-controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  margin-top: auto;
+}
+
+.report-action-controls label {
+  display: flex;
+  flex: 0 0 120px;
+  flex-direction: column;
+  gap: 5px;
+  color: #24384c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.report-action-controls input {
+  width: 100%;
+  padding: 10px;
+}
+
+.admin-action-card .report-action-controls button {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+}
+
 .purge-btn {
   background-color: #8b0000;
 }
