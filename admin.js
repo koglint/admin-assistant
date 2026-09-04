@@ -6,11 +6,11 @@ import {
   onAuthStateChanged
 } from './firebase.js';
 
-const BACKEND_BASE_URL = "https://admin-assistant-backend.onrender.com";
+const BACKEND_BASE_URL = "https://admin-assistant-backend-s6gh.onrender.com";
 const ADMIN_PURGE_URL = `${BACKEND_BASE_URL}/admin/purge`;
 const ADMIN_STUDENT_PURGE_URL = `${BACKEND_BASE_URL}/admin/student-purge`;
 const ADMIN_STUDENT_EXCEPTION_URL = `${BACKEND_BASE_URL}/admin/student-exception`;
-const ADMIN_AUTHORIZE_URL = "https://admin-assistant-backend.onrender.com/admin/authorize";
+const ADMIN_AUTHORIZE_URL = "https://admin-assistant-backend-s6gh.onrender.com/admin/authorize";
 const ALLOWED_ADMIN_USERNAMES = [
   "troy.koglin1",
   "gordon.nolan2",
