@@ -15,7 +15,7 @@ const form = document.getElementById('upload-form');
 const fileInput = document.getElementById('xls-file');
 const statusDiv = document.getElementById('upload-status');
 
-const BACKEND_URL = "https://admin-assistant-backend.onrender.com/upload";
+const BACKEND_URL = "https://admin-assistant-backend-s6gh.onrender.com/upload";
 
 loginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
